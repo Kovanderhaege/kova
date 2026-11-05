@@ -1,5 +1,3 @@
--- Proposition de migration initiale. UUID générés par le serveur sauf client_id.
-BEGIN;
 CREATE TABLE users (
     id uuid PRIMARY KEY,
     handle text UNIQUE NOT NULL CHECK (handle ~ '^[a-z0-9_]{3,32}$'),
@@ -49,4 +47,3 @@ CREATE TABLE messages (
     PRIMARY KEY (channel_id, seq),
     UNIQUE (channel_id, author_id, client_id)
 );
-COMMIT;
