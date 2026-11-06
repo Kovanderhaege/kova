@@ -58,3 +58,9 @@ Le 6 novembre 2026, `cargo build -p kova-desktop --locked` réussit nativement a
 Le contrôle interactif reste indisponible : l'initialisation de Computer Use renvoie toujours `failed to write kernel assets` / chemin introuvable, même après réinitialisation. Aucune fenêtre n'a été pilotée lors de cette vérification. Pour les essais manuels : session Windows déverrouillée, lancer l'exécutable, vérifier défilement, saisie et Ctrl+A/C/V/X, enregistrer un brouillon, fermer puis relancer. Noter les erreurs visibles. Aucun compte serveur n'est nécessaire pour ce prototype local.
 
 Cette vérification lève le blocage MSVC mentionné dans les résultats historiques ci-dessus ; elle ne clôt ni la validation interactive ni le jalon 2.
+
+## Diagnostic TaskDialogIndirect
+
+Le lancement signalé par le propriétaire concernait l'ancien exécutable GNU dans `target/x86_64-pc-windows-gnu/debug`. L'inspection avec `mt.exe` confirme que cet exécutable ne contient aucune section de ressources/manifeste. Le binaire MSVC `target/debug/kova-desktop.exe` contient bien la dépendance `Microsoft.Windows.Common-Controls` version `6.0.0.0`. Microsoft documente que TaskDialogIndirect nécessite Comctl32 version 6 : https://learn.microsoft.com/en-us/windows/win32/api/commctrl/nf-commctrl-taskdialogindirect . L'absence de manifeste dans le binaire GNU explique donc l'erreur de chargement observée ; sa compilation réussie ne prouvait pas sa capacité à démarrer.
+
+Utiliser uniquement `target/debug/kova-desktop.exe` pour les essais natifs actuels. L'ancien binaire GNU n'a pas été supprimé ni réparé. Lors de la tentative de lancement MSVC effectuée pendant ce diagnostic, le processus s'est terminé avec le code 0xC000013A, sans sortie d'erreur ; aucune validation graphique n'en est déduite. Le blocage de Computer Use reste distinct : son moteur échoue avant tout accès à Kova.
