@@ -2,13 +2,15 @@
 name = "kova-server"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL-3.0-only"
 publish = false
 
 [dependencies]
 axum = "0.8"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "macros", "migrate"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "time"] }
-ring = "0.17"
+kova-identity = { path = "../kova-identity" }
+kova-protocol = { path = "../kova-protocol" }
 hex = "0.4"
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }

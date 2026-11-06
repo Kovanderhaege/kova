@@ -1,0 +1,9 @@
+.git
+.idea
+**/target
+**/__pycache__
+**/*.kova-vault
+**/*.log
+**/.venv
+**/.env
+**/.env.*

@@ -5,22 +5,12 @@ use axum::{
     http::{StatusCode, header},
     response::{IntoResponse, Response},
 };
+pub(super) use kova_identity::{identity_id, public_key};
 use rand::{RngCore, rngs::OsRng};
-use ring::signature::{ED25519, UnparsedPublicKey};
 use serde::Deserialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{net::SocketAddr, sync::Arc};
-
-pub(super) fn public_key(value: &str) -> Option<[u8; 32]> {
-    let mut key = [0; 32];
-    hex::decode_to_slice(value, &mut key).ok()?;
-    (hex::encode(key) == value).then_some(key)
-}
-
-pub(super) fn identity_id(key: &[u8]) -> String {
-    format!("kova1-{}", hex::encode(Sha256::digest(key)))
-}
 
 fn random_token() -> Result<[u8; 32], AuthError> {
     let mut token = [0; 32];
@@ -45,7 +35,25 @@ pub(super) struct ChallengeRequest {
     global_identity_id: String,
     device_id: String,
     operation: String,
+    #[serde(default)]
+    session_mode: SessionMode,
     invite: Option<String>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+enum SessionMode {
+    #[default]
+    Cookie,
+    Bearer,
+}
+impl SessionMode {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Cookie => "cookie",
+            Self::Bearer => "bearer",
+        }
+    }
 }
 
 #[derive(sqlx::FromRow)]
@@ -58,24 +66,30 @@ struct Challenge {
     invite_hash: Option<Vec<u8>>,
     nonce: String,
     expires_at: String,
+    session_mode: String,
 }
 
 impl Challenge {
     fn message(&self) -> String {
-        format!(
-            "kova-auth-v1\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
-            self.origin,
-            self.operation,
-            self.identity_id,
-            self.device_id,
-            self.invite_hash
+        let challenge = kova_protocol::AuthChallenge {
+            origin: &self.origin,
+            operation: &self.operation,
+            identity: &self.identity_id,
+            device_id: &self.device_id,
+            invite_hash: &self
+                .invite_hash
                 .as_ref()
                 .map(hex::encode)
                 .unwrap_or_default(),
-            self.id,
-            self.nonce,
-            self.expires_at
-        )
+            id: &self.id,
+            nonce: &self.nonce,
+            expires_at: &self.expires_at,
+        };
+        if self.session_mode == "bearer" {
+            challenge.canonical_desktop()
+        } else {
+            challenge.canonical()
+        }
     }
 }
 
@@ -109,12 +123,12 @@ pub(super) async fn challenge(
     sqlx::query("DELETE FROM auth_challenges WHERE expires_at <= now()")
         .execute(&auth.pool)
         .await?;
-    let row: Challenge = sqlx::query_as("INSERT INTO auth_challenges (identity_id, device_id, origin, operation, invite_hash, nonce)
-        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id::text,identity_id,device_id,origin,operation,invite_hash,nonce,to_char(expires_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') as expires_at")
-        .bind(req.global_identity_id).bind(req.device_id).bind(&auth.origin).bind(req.operation).bind(invite).bind(hex::encode(random_token()?)).fetch_one(&auth.pool).await?;
+    let row: Challenge = sqlx::query_as("INSERT INTO auth_challenges (identity_id, device_id, origin, operation, invite_hash, nonce, session_mode)
+        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id::text,identity_id,device_id,origin,operation,invite_hash,nonce,session_mode,to_char(expires_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') as expires_at")
+        .bind(req.global_identity_id).bind(req.device_id).bind(&auth.origin).bind(req.operation).bind(invite).bind(hex::encode(random_token()?)).bind(req.session_mode.as_str()).fetch_one(&auth.pool).await?;
     Ok((
         StatusCode::CREATED,
-        Json(json!({"challenge_id":row.id,"challenge":row.message(),"expires_at":row.expires_at})),
+        Json(json!({"challenge_id":row.id,"challenge":row.message(),"expires_at":row.expires_at,"session_mode":row.session_mode})),
     )
         .into_response())
 }
@@ -145,11 +159,9 @@ pub(super) fn verify_signature(
     message: &str,
     signature: &str,
 ) -> Result<(), AuthError> {
-    let mut bytes = [0; 64];
-    hex::decode_to_slice(signature, &mut bytes).map_err(|_| AuthError::Credentials)?;
-    UnparsedPublicKey::new(&ED25519, key)
-        .verify(message.as_bytes(), &bytes)
-        .map_err(|_| AuthError::Credentials)
+    kova_identity::verify_signature(key, message, signature)
+        .then_some(())
+        .ok_or(AuthError::Credentials)
 }
 
 pub(super) async fn verify(
@@ -167,7 +179,7 @@ pub(super) async fn verify(
     let device_id = hex::encode(Sha256::digest(device));
     let mut tx = auth.pool.begin().await?;
     let ch: Challenge = sqlx::query_as("DELETE FROM auth_challenges WHERE id::text=$1 AND expires_at > clock_timestamp() AND origin=$2
-        RETURNING id::text,identity_id,device_id,origin,operation,invite_hash,nonce,to_char(expires_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') as expires_at")
+        RETURNING id::text,identity_id,device_id,origin,operation,invite_hash,nonce,session_mode,to_char(expires_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') as expires_at")
         .bind(&req.challenge_id).bind(&auth.origin).fetch_optional(&mut *tx).await?.ok_or(AuthError::Credentials)?;
     if root == device
         || identity != ch.identity_id
@@ -181,10 +193,8 @@ pub(super) async fn verify(
     if !(1..=253402300799).contains(&expiry) {
         return Err(AuthError::Credentials);
     }
-    let attestation = format!(
-        "kova-device-v1\n{identity}\n{device_id}\n{}\n{expiry}",
-        req.device_public_key
-    );
+    let attestation =
+        kova_protocol::device_authorization(&identity, &device_id, &req.device_public_key, expiry);
     verify_signature(&root, &attestation, &req.device_authorization.signature)?;
     verify_signature(&device, &ch.message(), &req.signature)?;
 
@@ -226,14 +236,24 @@ pub(super) async fn verify(
         .bind(&identity).fetch_optional(&mut *tx).await?.ok_or(AuthError::Credentials)?;
     sqlx::query("INSERT INTO devices (identity_id,device_id,public_key) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING")
         .bind(&identity).bind(&device_id).bind(device.as_slice()).execute(&mut *tx).await?;
+    // Persist only a verified certificate, without ever clearing a revocation tombstone.
+    sqlx::query("UPDATE devices SET authorization_payload=$3,authorization_signature=$4,authorization_expires_at=$5 WHERE identity_id=$1 AND device_id=$2 AND (authorization_expires_at IS NULL OR authorization_expires_at <= $5)")
+        .bind(&identity).bind(&device_id).bind(&attestation)
+        .bind(hex::decode(&req.device_authorization.signature).map_err(|_| AuthError::Credentials)?)
+        .bind(expiry).execute(&mut *tx).await?;
     let token = random_token()?;
-    let age: i32 = sqlx::query_scalar("INSERT INTO sessions (token_hash,user_id,identity_id,device_id,expires_at)
-        SELECT $1,$2::text::uuid,identity_id,device_id,least(now()+interval '168 hours',to_timestamp($5::bigint))
+    let age: i32 = sqlx::query_scalar("INSERT INTO sessions (token_hash,user_id,identity_id,device_id,expires_at,transport)
+        SELECT $1,$2::text::uuid,identity_id,device_id,least(now()+make_interval(secs => $6::int),to_timestamp($5::bigint)),$7
         FROM devices WHERE identity_id=$3 AND device_id=$4 AND revoked_at IS NULL AND to_timestamp($5::bigint)>clock_timestamp()
         RETURNING floor(extract(epoch FROM expires_at-now()))::int")
         .bind(Sha256::digest(token).to_vec()).bind(&user.id).bind(identity).bind(device_id).bind(expiry)
+        .bind(if ch.session_mode == "bearer" { 3600i32 } else { 604800i32 }).bind(&ch.session_mode)
         .fetch_optional(&mut *tx).await?.ok_or(AuthError::Credentials)?;
     tx.commit().await?;
+    if ch.session_mode == "bearer" {
+        return Ok((if joined { StatusCode::CREATED } else { StatusCode::OK },
+            Json(json!({"access_token":hex::encode(token), "token_type":"Bearer", "expires_in":age, "profile":user}))).into_response());
+    }
     Ok((
         if joined {
             StatusCode::CREATED

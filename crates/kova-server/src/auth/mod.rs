@@ -8,7 +8,7 @@ pub use accounts::bootstrap;
 use axum::{
     Json, Router,
     body::Bytes,
-    extract::{DefaultBodyLimit, Request, State, rejection::JsonRejection},
+    extract::{DefaultBodyLimit, Request, State},
     http::{HeaderMap, Method, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -84,6 +84,7 @@ async fn protect(State(auth): State<Arc<Auth>>, request: Request, next: Next) ->
     response
 }
 
+#[derive(Debug)]
 enum AuthError {
     Invalid,
     Session,
@@ -162,22 +163,36 @@ fn cookie(auth: &Auth, value: &str, age: u32) -> String {
     format!("kova_session={value}; HttpOnly; SameSite=Lax; Path=/; Max-Age={age}{secure}")
 }
 
-fn session_hash(headers: &HeaderMap) -> Result<Vec<u8>, AuthError> {
-    let value = headers
+fn session_credentials(headers: &HeaderMap) -> Result<(Vec<u8>, &'static str), AuthError> {
+    let auth_values: Vec<_> = headers.get_all(header::AUTHORIZATION).iter().collect();
+    let cookies: Vec<_> = headers
         .get_all(header::COOKIE)
         .iter()
         .filter_map(|v| v.to_str().ok())
         .flat_map(|v| v.split(';'))
-        .find_map(|pair| pair.trim().strip_prefix("kova_session="))
-        .ok_or(AuthError::Session)?;
+        .filter_map(|pair| pair.trim().strip_prefix("kova_session="))
+        .collect();
+    let (value, transport) = match (auth_values.as_slice(), cookies.as_slice()) {
+        ([authorization], []) => (
+            authorization
+                .to_str()
+                .ok()
+                .and_then(|v| v.strip_prefix("Bearer "))
+                .ok_or(AuthError::Session)?,
+            "bearer",
+        ),
+        ([], [cookie]) => (*cookie, "cookie"),
+        _ => return Err(AuthError::Session),
+    };
     let mut token = [0; 32];
     hex::decode_to_slice(value, &mut token).map_err(|_| AuthError::Session)?;
-    Ok(Sha256::digest(token).to_vec())
+    Ok((Sha256::digest(token).to_vec(), transport))
 }
 
 async fn me(State(auth): State<Arc<Auth>>, headers: HeaderMap) -> Result<Json<User>, AuthError> {
-    sqlx::query_as("SELECT u.id::text, u.global_identity_id, u.handle, u.display_name FROM sessions s JOIN users u ON u.id=s.user_id JOIN devices d ON (d.identity_id,d.device_id)=(s.identity_id,s.device_id) WHERE d.revoked_at IS NULL AND s.token_hash=$1 AND s.expires_at > now()")
-        .bind(session_hash(&headers)?).fetch_optional(&auth.pool).await?.map(Json).ok_or(AuthError::Session)
+    let (hash, transport) = session_credentials(&headers)?;
+    sqlx::query_as("SELECT u.id::text, u.global_identity_id, u.handle, u.display_name FROM sessions s JOIN users u ON u.id=s.user_id JOIN devices d ON (d.identity_id,d.device_id)=(s.identity_id,s.device_id) WHERE d.revoked_at IS NULL AND s.token_hash=$1 AND s.expires_at > now() AND s.transport=$2")
+        .bind(hash).bind(transport).fetch_optional(&auth.pool).await?.map(Json).ok_or(AuthError::Session)
 }
 
 async fn logout(
@@ -188,16 +203,40 @@ async fn logout(
     if !body.is_empty() {
         return Err(AuthError::Invalid);
     }
-    let deleted = sqlx::query("DELETE FROM sessions WHERE token_hash=$1 AND expires_at > now()")
-        .bind(session_hash(&headers)?)
-        .execute(&auth.pool)
-        .await?;
+    let (hash, transport) = session_credentials(&headers)?;
+    let deleted = sqlx::query(
+        "DELETE FROM sessions WHERE token_hash=$1 AND expires_at > now() AND transport=$2",
+    )
+    .bind(hash)
+    .bind(transport)
+    .execute(&auth.pool)
+    .await?;
     if deleted.rows_affected() == 0 {
         return Err(AuthError::Session);
+    }
+    if transport == "bearer" {
+        return Ok(StatusCode::NO_CONTENT.into_response());
     }
     Ok((
         StatusCode::NO_CONTENT,
         [(header::SET_COOKIE, cookie(&auth, "", 0))],
     )
         .into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn rejects_ambiguous_authorization_headers() {
+        let mut headers = HeaderMap::new();
+        let bearer = format!("Bearer {}", "01".repeat(32)).parse().unwrap();
+        headers.append(header::AUTHORIZATION, bearer);
+        assert_eq!(session_credentials(&headers).unwrap().1, "bearer");
+        headers.append(
+            header::AUTHORIZATION,
+            format!("Bearer {}", "02".repeat(32)).parse().unwrap(),
+        );
+        assert!(session_credentials(&headers).is_err());
+    }
 }

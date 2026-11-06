@@ -1,3 +1,6 @@
-/backend/target/
+/target/
+**/target/
 __pycache__/
 *.kova-vault
+
+/dist/

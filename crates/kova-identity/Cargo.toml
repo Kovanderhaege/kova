@@ -1,0 +1,10 @@
+[package]
+name = "kova-identity"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+ring = "0.17"
+hex = "0.4"
+sha2 = "0.10"

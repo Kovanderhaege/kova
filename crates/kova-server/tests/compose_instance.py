@@ -9,7 +9,7 @@ from urllib.request import urlopen
 from uuid import uuid4
 
 
-COMPOSE = Path(__file__).resolve().parents[2] / "deployment" / "compose.yaml"
+COMPOSE = Path(__file__).resolve().parents[3] / "deployment" / "compose.yaml"
 
 
 def instance(api_port="0"):

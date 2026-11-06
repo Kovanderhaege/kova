@@ -1,7 +1,9 @@
 name: kova-dev
 services:
   api:
-    build: ../backend
+    build:
+      context: ..
+      dockerfile: crates/kova-server/Dockerfile
     environment:
       PGHOST: db
       PGDATABASE: kova

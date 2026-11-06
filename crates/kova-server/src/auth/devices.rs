@@ -16,6 +16,10 @@ use std::sync::Arc;
 struct Device {
     device_id: String,
     revoked: bool,
+    authorization_payload: Option<String>,
+    authorization_signature: Option<String>,
+    authorization_expires_at: Option<i64>,
+    revocation_signature: Option<String>,
 }
 
 pub(super) async fn list(
@@ -23,7 +27,7 @@ pub(super) async fn list(
     headers: HeaderMap,
 ) -> Result<Json<Value>, AuthError> {
     let Json(user) = me(state.clone(), headers).await?;
-    let devices: Vec<Device> = sqlx::query_as("SELECT device_id, revoked_at IS NOT NULL AS revoked FROM devices WHERE identity_id=$1 ORDER BY device_id")
+    let devices: Vec<Device> = sqlx::query_as("SELECT device_id, revoked_at IS NOT NULL AS revoked, authorization_payload, encode(authorization_signature,'hex') AS authorization_signature, authorization_expires_at, encode(revocation_signature,'hex') AS revocation_signature FROM devices WHERE identity_id=$1 ORDER BY device_id")
         .bind(user.global_identity_id).fetch_all(&state.pool).await?;
     Ok(Json(json!({"items":devices})))
 }
@@ -49,10 +53,10 @@ pub(super) async fn revoke(
         .bind(&user.global_identity_id)
         .fetch_one(&state.pool)
         .await?;
-    let message = format!("kova-revoke-v1\n{}\n{}", user.global_identity_id, device_id);
+    let message = kova_protocol::device_revocation(&user.global_identity_id, &device_id);
     verify_signature(&root, &message, &req.signature)?;
-    sqlx::query("INSERT INTO devices(identity_id,device_id,public_key,revoked_at) VALUES ($1,$2,$3,now())
-        ON CONFLICT (identity_id,device_id) DO UPDATE SET revoked_at=coalesce(devices.revoked_at,excluded.revoked_at)")
-        .bind(user.global_identity_id).bind(device_id).bind(key.as_slice()).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO devices(identity_id,device_id,public_key,revoked_at,revocation_signature) VALUES ($1,$2,$3,now(),$4)
+        ON CONFLICT (identity_id,device_id) DO UPDATE SET revoked_at=coalesce(devices.revoked_at,excluded.revoked_at),revocation_signature=excluded.revocation_signature")
+        .bind(user.global_identity_id).bind(device_id).bind(key.as_slice()).bind(hex::decode(&req.signature).map_err(|_| AuthError::Invalid)?).execute(&state.pool).await?;
     Ok(Json(req))
 }

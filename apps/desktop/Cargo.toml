@@ -1,0 +1,10 @@
+[package]
+name = "kova-desktop"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[target.'cfg(windows)'.dependencies]
+gpui = { version = "=0.2.2", default-features = false, features = ["windows-manifest"] }
+unicode-segmentation = "1"
+kova-client-core = { path = "../../crates/kova-client-core" }
