@@ -20,8 +20,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     match env::args().skip(1).collect::<Vec<_>>().as_slice() {
         [] => (),
-        [cmd] if cmd == "create-first-user" => return auth::bootstrap(&pool).await,
-        _ => return Err("Usage : kova-server [create-first-user]".into()),
+        [cmd, handle, name, key] if cmd == "bootstrap-admin" || cmd == "bind-profile" => {
+            return auth::bootstrap(&pool, handle, name, key, cmd == "bootstrap-admin").await;
+        }
+        _ => {
+            return Err(
+                "Usage : kova-server [bootstrap-admin|bind-profile HANDLE NOM CLE_PUBLIQUE_HEX]"
+                    .into(),
+            );
+        }
     }
     let origin = env::var("KOVA_ORIGIN").unwrap_or_else(|_| "http://127.0.0.1:8080".into());
     let address = env::var("KOVA_LISTEN").unwrap_or_else(|_| "127.0.0.1:8080".into());

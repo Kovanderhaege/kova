@@ -1,19 +1,5 @@
-use std::{
-    error::Error,
-    io::{self, IsTerminal, Write},
-};
-
-use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
-use rand::rngs::OsRng;
 use sqlx::PgPool;
-
-pub(super) fn hash_password(password: &str) -> Result<String, &'static str> {
-    Argon2::default()
-        .hash_password(password.as_bytes(), &SaltString::generate(&mut OsRng))
-        .map(|hash| hash.to_string())
-        .map_err(|_| "Échec du hachage.")
-}
-
+use std::error::Error;
 pub(super) fn valid_handle(handle: &str) -> bool {
     (3..=32).contains(&handle.len())
         && handle
@@ -21,46 +7,44 @@ pub(super) fn valid_handle(handle: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
 }
 
-fn prompt(label: &str) -> io::Result<String> {
-    eprint!("{label} : ");
-    io::stderr().flush()?;
-    let mut line = String::new();
-    io::stdin().read_line(&mut line)?;
-    Ok(line.trim_end_matches(['\r', '\n']).to_owned())
-}
-
-pub async fn bootstrap(pool: &PgPool) -> Result<(), Box<dyn Error>> {
-    let handle = prompt("Identifiant (3–32 caractères : a-z, 0-9, _)")?;
-    let name = prompt("Nom affiché")?;
-    if !valid_handle(&handle) || !(1..=64).contains(&name.trim().chars().count()) {
-        return Err("Identifiant ou nom affiché invalide.".into());
+pub async fn bootstrap(
+    pool: &PgPool,
+    handle: &str,
+    name: &str,
+    key: &str,
+    admin: bool,
+) -> Result<(), Box<dyn Error>> {
+    if !valid_handle(handle) || !(1..=64).contains(&name.trim().chars().count()) {
+        return Err("Profil invalide.".into());
     }
-    let password = if io::stdin().is_terminal() {
-        rpassword::prompt_password("Mot de passe : ")?
-    } else {
-        prompt("Mot de passe")?
-    };
-    if password.is_empty() || password.len() > 1024 {
-        return Err("Le mot de passe doit contenir entre 1 et 1024 octets.".into());
-    }
-    let hash = hash_password(&password)?;
+    let root = super::proof::public_key(key).ok_or("Clé publique Ed25519 invalide.")?;
+    let identity = super::proof::identity_id(&root);
     let mut tx = pool.begin().await?;
     sqlx::query("LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE")
         .execute(&mut *tx)
         .await?;
-    let result = sqlx::query(
-        "INSERT INTO users (id, handle, display_name, password_hash)
-        SELECT gen_random_uuid(), $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM users)",
-    )
-    .bind(handle)
-    .bind(name.trim())
-    .bind(hash)
-    .execute(&mut *tx)
-    .await?;
-    if result.rows_affected() == 0 {
-        return Err("Un compte existe déjà.".into());
+    if admin
+        && sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT FROM users WHERE is_admin)")
+            .fetch_one(&mut *tx)
+            .await?
+    {
+        return Err("Administrateur déjà initialisé.".into());
+    }
+    sqlx::query("INSERT INTO identities VALUES ($1,$2)")
+        .bind(&identity)
+        .bind(root.as_slice())
+        .execute(&mut *tx)
+        .await?;
+    let bound = sqlx::query("UPDATE users SET global_identity_id=$1, is_admin=$2 WHERE handle=$3 AND global_identity_id IS NULL")
+        .bind(&identity).bind(admin).bind(handle).execute(&mut *tx).await?;
+    if bound.rows_affected() == 0 {
+        if !admin {
+            return Err("Aucun ancien profil disponible sous cet identifiant.".into());
+        }
+        sqlx::query("INSERT INTO users (id, handle, display_name, global_identity_id, is_admin) VALUES (gen_random_uuid(),$1,$2,$3,true)")
+            .bind(handle).bind(name.trim()).bind(&identity).execute(&mut *tx).await?;
     }
     tx.commit().await?;
-    eprintln!("Premier utilisateur créé.");
+    eprintln!("Profil associé à {identity}.");
     Ok(())
 }

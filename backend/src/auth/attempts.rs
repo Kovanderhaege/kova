@@ -7,7 +7,7 @@ use std::{
 // Fenêtre fixe partagée, remise à zéro en O(1) par tentative entre deux fenêtres.
 pub(super) struct Attempts {
     since: Instant,
-    handles: HashMap<String, u8>,
+    identities: HashMap<String, u8>,
     addresses: HashMap<IpAddr, u8>,
 }
 
@@ -15,12 +15,12 @@ impl Attempts {
     pub fn new() -> Self {
         Self {
             since: Instant::now(),
-            handles: HashMap::new(),
+            identities: HashMap::new(),
             addresses: HashMap::new(),
         }
     }
 
-    pub fn allow(&mut self, ip: IpAddr, handle: &str) -> bool {
+    pub fn allow(&mut self, ip: IpAddr, identity: Option<&str>) -> bool {
         if self.since.elapsed() >= Duration::from_secs(60) {
             *self = Self::new();
         }
@@ -32,10 +32,13 @@ impl Attempts {
             return false;
         }
         *address += 1;
-        if self.handles.len() >= 8192 && !self.handles.contains_key(handle) {
+        let Some(identity) = identity else {
+            return true;
+        };
+        if self.identities.len() >= 8192 && !self.identities.contains_key(identity) {
             return false;
         }
-        let account = self.handles.entry(handle.to_owned()).or_default();
+        let account = self.identities.entry(identity.to_owned()).or_default();
         if *account >= 10 {
             return false;
         }

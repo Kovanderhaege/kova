@@ -1,35 +1,35 @@
 mod accounts;
 mod attempts;
+mod devices;
+mod proof;
 
 pub use accounts::bootstrap;
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
+
 use axum::{
     Json, Router,
     body::Bytes,
-    extract::{ConnectInfo, DefaultBodyLimit, Request, State, rejection::JsonRejection},
+    extract::{DefaultBodyLimit, Request, State, rejection::JsonRejection},
     http::{HeaderMap, Method, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use rand::{RngCore, rngs::OsRng};
-use serde::{Deserialize, Serialize};
+
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use std::{
     error::Error,
-    net::SocketAddr,
     sync::{Arc, Mutex},
 };
-use tokio::sync::Semaphore;
+
 use url::{Host, Url};
 
 struct Auth {
     pool: PgPool,
     origin: String,
     secure: bool,
-    dummy_hash: String,
-    workers: Arc<Semaphore>,
+
     attempts: Mutex<attempts::Attempts>,
 }
 
@@ -53,14 +53,16 @@ pub fn routes(pool: PgPool, origin: &str) -> Result<Router, Box<dyn Error>> {
         pool,
         origin: origin.to_owned(),
         secure,
-        dummy_hash: accounts::hash_password("dummy")?,
-        workers: Arc::new(Semaphore::new(2)),
+
         attempts: Mutex::new(attempts::Attempts::new()),
     });
     Ok(Router::new()
-        .route("/auth/login", post(login))
+        .route("/auth/challenges", post(proof::challenge))
+        .route("/auth/verify", post(proof::verify))
         .route("/auth/logout", post(logout))
         .route("/me", get(me))
+        .route("/identity/devices", get(devices::list))
+        .route("/identity/devices/revoke", post(devices::revoke))
         .layer(DefaultBodyLimit::max(8192))
         .layer(middleware::from_fn_with_state(auth.clone(), protect))
         .with_state(auth))
@@ -88,6 +90,8 @@ enum AuthError {
     Credentials,
     Origin,
     Limited,
+    Invite,
+    Conflict,
     Internal,
 }
 
@@ -116,6 +120,16 @@ impl IntoResponse for AuthError {
                 "rate_limited",
                 "Réessayez plus tard.",
             ),
+            Invite => (
+                StatusCode::BAD_REQUEST,
+                "invalid_invite",
+                "Invitation invalide ou expirée.",
+            ),
+            Conflict => (
+                StatusCode::CONFLICT,
+                "handle_taken",
+                "Identifiant local déjà utilisé.",
+            ),
             Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal_error",
@@ -135,13 +149,9 @@ impl From<sqlx::Error> for AuthError {
     }
 }
 
-#[derive(Deserialize)]
-struct Login {
-    handle: String,
-    password: String,
-}
 #[derive(Serialize, sqlx::FromRow)]
 struct User {
+    global_identity_id: String,
     id: String,
     handle: String,
     display_name: String,
@@ -150,69 +160,6 @@ struct User {
 fn cookie(auth: &Auth, value: &str, age: u32) -> String {
     let secure = if auth.secure { "; Secure" } else { "" };
     format!("kova_session={value}; HttpOnly; SameSite=Lax; Path=/; Max-Age={age}{secure}")
-}
-
-async fn login(
-    State(auth): State<Arc<Auth>>,
-    ConnectInfo(peer): ConnectInfo<SocketAddr>,
-    body: Result<Json<Login>, JsonRejection>,
-) -> Result<Response, AuthError> {
-    let Json(login) = body.map_err(|_| AuthError::Invalid)?;
-    if !accounts::valid_handle(&login.handle) || login.password.len() > 1024 {
-        return Err(AuthError::Credentials);
-    }
-    if !auth
-        .attempts
-        .lock()
-        .unwrap()
-        .allow(peer.ip(), &login.handle)
-    {
-        return Err(AuthError::Limited);
-    }
-    let permit = auth
-        .workers
-        .clone()
-        .try_acquire_owned()
-        .map_err(|_| AuthError::Limited)?;
-    let row: Option<(String, String, String)> =
-        sqlx::query_as("SELECT id::text, display_name, password_hash FROM users WHERE handle=$1")
-            .bind(&login.handle)
-            .fetch_optional(&auth.pool)
-            .await?;
-    let hash = row
-        .as_ref()
-        .map(|r| &r.2)
-        .unwrap_or(&auth.dummy_hash)
-        .clone();
-    let verified = tokio::task::spawn_blocking(move || {
-        let _permit = permit;
-        PasswordHash::new(&hash).is_ok_and(|hash| {
-            Argon2::default()
-                .verify_password(login.password.as_bytes(), &hash)
-                .is_ok()
-        })
-    })
-    .await
-    .map_err(|_| AuthError::Internal)?;
-    let (id, display_name, _) = row.filter(|_| verified).ok_or(AuthError::Credentials)?;
-    let mut token = [0u8; 32];
-    OsRng
-        .try_fill_bytes(&mut token)
-        .map_err(|_| AuthError::Internal)?;
-    sqlx::query("INSERT INTO sessions (token_hash,user_id,expires_at) VALUES ($1,$2::text::uuid,now() + interval '168 hours')")
-        .bind(Sha256::digest(token).to_vec()).bind(&id).execute(&auth.pool).await?;
-    Ok((
-        [(
-            header::SET_COOKIE,
-            cookie(&auth, &hex::encode(token), 604800),
-        )],
-        Json(User {
-            id,
-            handle: login.handle,
-            display_name,
-        }),
-    )
-        .into_response())
 }
 
 fn session_hash(headers: &HeaderMap) -> Result<Vec<u8>, AuthError> {
@@ -229,7 +176,7 @@ fn session_hash(headers: &HeaderMap) -> Result<Vec<u8>, AuthError> {
 }
 
 async fn me(State(auth): State<Arc<Auth>>, headers: HeaderMap) -> Result<Json<User>, AuthError> {
-    sqlx::query_as("SELECT u.id::text, u.handle, u.display_name FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at > now()")
+    sqlx::query_as("SELECT u.id::text, u.global_identity_id, u.handle, u.display_name FROM sessions s JOIN users u ON u.id=s.user_id JOIN devices d ON (d.identity_id,d.device_id)=(s.identity_id,s.device_id) WHERE d.revoked_at IS NULL AND s.token_hash=$1 AND s.expires_at > now()")
         .bind(session_hash(&headers)?).fetch_optional(&auth.pool).await?.map(Json).ok_or(AuthError::Session)
 }
 

@@ -8,10 +8,9 @@ publish = false
 axum = "0.8"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "macros", "migrate"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "time"] }
-argon2 = "0.5"
+ring = "0.17"
 hex = "0.4"
 rand = "0.8"
-rpassword = "7"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
