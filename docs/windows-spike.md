@@ -6,11 +6,11 @@ Cible initiale : Windows x86-64, Rust MSVC, GPUI publié 0.2.2. `apps/desktop` c
 
 `kova-client-core` contient une identité racine/appareil générée localement, les signatures compatibles serveur, la validation du contexte des challenges, une API HTTP sans redirections, des sessions liées à l'origine et un cache SQLite sans secrets. Sur Windows, `keyring` utilise le gestionnaire d'identifiants natif pour l'identité et les sessions. Il n'y a aucun repli vers un fichier en clair.
 
-## Blocage constaté sur cette machine
+## Ancien blocage de compilation — levé le 6 novembre 2026
 
 Rust MSVC 1.99.1 et rustfmt sont installés pour l'utilisateur, sans modifier le PATH système. Visual Studio Community est présent mais les outils C++/SDK requis sont absents. `cargo check -p kova-desktop --locked` échoue faute de `link.exe`. L'installateur Visual Studio a refusé l'installation silencieuse avec le code 5007 : cette commande exige un lancement administrateur. Aucune élévation n'a été déclenchée.
 
-Dans Visual Studio Installer, installer **Développement Desktop en C++**, avec MSVC x64/x86 et Windows SDK. Après cela, dans un terminal disposant de Cargo :
+Les outils ont depuis été installés par le propriétaire : Visual Studio 18 Build Tools avec MSVC x64/x86 et Windows SDK 10.0.26100.0 sont détectés. Dans un terminal disposant de Cargo :
 
 ```powershell
 cargo run -p kova-desktop --locked
@@ -50,3 +50,11 @@ La preuve du jalon 0 reste ouverte tant que les essais natifs, notifications et 
 - Le compilateur signale une méthode `reset` inutilisée dans l'éditeur adapté et un avertissement de compatibilité future dans la dépendance `proc-macro-error2`. Ces avertissements ne bloquent pas la construction testée.
 
 Le job CI Windows/MSVC est préparé mais n'a pas été exécuté à distance. Le ZIP MSVC n'a pas été produit localement. Ne pas confondre l'exécutable de diagnostic GNU avec une distribution signée du MVP.
+
+## Vérification après installation des outils C++
+
+Le 6 novembre 2026, `cargo build -p kova-desktop --locked` réussit nativement avec `stable-x86_64-pc-windows-msvc` (1 min 28 s). L'exécutable est `target/debug/kova-desktop.exe`. Les avertissements préexistants sur `reset` et `proc-macro-error2` restent non bloquants. `cargo test -p kova-client-core --locked` réussit également sous Windows. Ces tests ne réalisent pas un aller-retour dans Credential Manager.
+
+Le contrôle interactif reste indisponible : l'initialisation de Computer Use renvoie toujours `failed to write kernel assets` / chemin introuvable, même après réinitialisation. Aucune fenêtre n'a été pilotée lors de cette vérification. Pour les essais manuels : session Windows déverrouillée, lancer l'exécutable, vérifier défilement, saisie et Ctrl+A/C/V/X, enregistrer un brouillon, fermer puis relancer. Noter les erreurs visibles. Aucun compte serveur n'est nécessaire pour ce prototype local.
+
+Cette vérification lève le blocage MSVC mentionné dans les résultats historiques ci-dessus ; elle ne clôt ni la validation interactive ni le jalon 2.
