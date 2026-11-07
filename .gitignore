@@ -4,3 +4,4 @@ __pycache__/
 *.kova-vault
 
 /dist/
+/.venv/

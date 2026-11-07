@@ -13,6 +13,27 @@ pub fn device_revocation(identity: &str, device_id: &str) -> String {
     format!("kova-revoke-v1\n{identity}\n{device_id}")
 }
 
+/// V2 binds the complete validity interval, so a long-lived v1 certificate
+/// cannot become acceptable again during its last 24 hours.
+pub fn device_authorization_v2(
+    identity: &str,
+    device_id: &str,
+    public_key: &str,
+    issued_at: i64,
+    expires_at: i64,
+) -> String {
+    format!("kova-device-v2\n{identity}\n{device_id}\n{public_key}\n{issued_at}\n{expires_at}")
+}
+
+pub fn authorization_is_fresh(issued_at: i64, expires_at: i64, now: i64) -> bool {
+    issued_at > 0
+        && issued_at <= now
+        && expires_at > now
+        && expires_at
+            .checked_sub(issued_at)
+            .is_some_and(|duration| (1..=86400).contains(&duration))
+}
+
 pub struct AuthChallenge<'a> {
     pub origin: &'a str,
     pub operation: &'a str,
@@ -73,5 +94,17 @@ mod tests {
             device_revocation("identity", "device"),
             "kova-revoke-v1\nidentity\ndevice"
         );
+    }
+    #[test]
+    fn v2_binds_full_validity_interval() {
+        assert_eq!(
+            device_authorization_v2("id", "device", "key", 100, 200),
+            "kova-device-v2\nid\ndevice\nkey\n100\n200"
+        );
+        assert!(authorization_is_fresh(100, 86500, 100));
+        assert!(!authorization_is_fresh(100, 86501, 86500));
+        assert!(!authorization_is_fresh(101, 200, 100));
+        assert!(!authorization_is_fresh(100, 200, 200));
+        assert!(!authorization_is_fresh(i64::MIN, i64::MAX, 100));
     }
 }

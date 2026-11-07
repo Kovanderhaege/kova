@@ -37,7 +37,7 @@ cargo run -p kova-client-core --bin kova-identity -- me http://127.0.0.1:8080
 cargo run -p kova-client-core --bin kova-identity -- logout http://127.0.0.1:8080
 ```
 
-`init` refuse de remplacer une identité déjà présente. Ce coffre est destiné au prototype : restauration/export chiffré et appairage ne sont pas encore disponibles. Ne pas l'utiliser pour une identité irremplaçable. Le binaire affiche le profil public, jamais les jetons. Les clés et sessions sont dans le coffre Windows ; la CLI Linux échoue explicitement. L'UI de connexion n'est pas encore reliée à ce client de diagnostic.
+`init` refuse de remplacer une identité déjà présente. Le binaire affiche le profil public, jamais les jetons. Les clés et sessions sont dans le coffre Windows ; la CLI Linux échoue explicitement. L'interface d'identité utilise maintenant le même cœur client, avec sauvegarde/restauration chiffrée et association : voir [le guide d'identité](windows-identity.md). Les résultats historiques ci-dessous concernent le prototype de liste (`--spike`).
 
 La preuve du jalon 0 reste ouverte tant que les essais natifs, notifications et packaging ne sont pas réalisés. Une compilation croisée ou une CI qui compile ne remplace pas ces essais.
 
@@ -70,3 +70,9 @@ Utiliser uniquement `target/debug/kova-desktop.exe` pour les essais natifs actue
 Le 6 novembre 2026, le propriétaire confirme que le prototype fonctionne et que les tests manuels demandés passent (défilement, saisie, copier-coller et brouillon conservé après relance). Il s'agit d'une validation rapportée par le propriétaire, pas d'une observation automatisée de l'assistant. Les notifications, le coffre et les autres parcours non proposés dans cette liste ne sont pas couverts par ce retour.
 
 Le retest du moteur interactif après ce retour échoue encore lors de l'initialisation Node REPL : `failed to write kernel assets: Le chemin d’accès spécifié est introuvable. (os error 3)`. Réinitialiser le noyau ne résout pas l'erreur. Les dossiers TEMP/TMP et les dossiers temporaires Codex vérifiés existent ; les journaux locaux indiquent un runtime Node REPL configuré, sans identifier le chemin d'écriture fautif. L'origine exacte reste non déterminée. Un redémarrage complet de l'application hôte est la prochaine tentative de diagnostic, sans garantie de correction.
+
+## Vérification du 7 novembre 2026
+
+Le moteur Computer Use fonctionne désormais. La nouvelle fenêtre d'identité a été ouverte, inspectée et fermée ; navigation, champ secret Unicode masqué et retour d'erreur ont été contrôlés. Le coffre natif et la récupération/association passent leurs tests Windows. Le détail de clôture du jalon 2 figure dans [migration-plan.md](migration-plan.md). Cela ne vaut pas validation des notifications ou du packaging du jalon 0.
+
+Pour cette exécution locale, les artefacts de compilation ont été déplacés vers `D:\kova-build-20261107` faute d'espace sur C:, sans supprimer les anciens artefacts GNU. Les commandes ont utilisé `CARGO_TARGET_DIR=D:\kova-build-20261107` ; le binaire MSVC testé est `D:\kova-build-20261107\debug\kova-desktop.exe`. Ce chemin est propre à cette machine, pas une exigence du projet.

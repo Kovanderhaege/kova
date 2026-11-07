@@ -1,8 +1,18 @@
 #[cfg(windows)]
+mod identity_service;
+#[cfg(windows)]
+mod identity_ui;
+#[cfg(windows)]
+mod input;
+#[cfg(windows)]
 mod spike;
 #[cfg(windows)]
 fn main() {
-    spike::run();
+    if std::env::args().any(|arg| arg == "--spike") {
+        spike::run();
+    } else {
+        identity_ui::run();
+    }
 }
 #[cfg(not(windows))]
 fn main() {

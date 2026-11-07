@@ -1,7 +1,4 @@
-use super::{
-    Auth, AuthError, me,
-    proof::{public_key, verify_signature},
-};
+use super::{Auth, AuthError, me};
 use axum::{
     Json,
     extract::{State, rejection::JsonRejection},
@@ -9,12 +6,12 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
 #[derive(Serialize, sqlx::FromRow)]
 struct Device {
     device_id: String,
+    public_key: String,
     revoked: bool,
     authorization_payload: Option<String>,
     authorization_signature: Option<String>,
@@ -27,7 +24,7 @@ pub(super) async fn list(
     headers: HeaderMap,
 ) -> Result<Json<Value>, AuthError> {
     let Json(user) = me(state.clone(), headers).await?;
-    let devices: Vec<Device> = sqlx::query_as("SELECT device_id, revoked_at IS NOT NULL AS revoked, authorization_payload, encode(authorization_signature,'hex') AS authorization_signature, authorization_expires_at, encode(revocation_signature,'hex') AS revocation_signature FROM devices WHERE identity_id=$1 ORDER BY device_id")
+    let devices: Vec<Device> = sqlx::query_as("SELECT device_id, encode(public_key,'hex') AS public_key, revoked_at IS NOT NULL AS revoked, authorization_payload, encode(authorization_signature,'hex') AS authorization_signature, authorization_expires_at, encode(revocation_signature,'hex') AS revocation_signature FROM devices WHERE identity_id=$1 ORDER BY device_id")
         .bind(user.global_identity_id).fetch_all(&state.pool).await?;
     Ok(Json(json!({"items":devices})))
 }
@@ -47,16 +44,12 @@ pub(super) async fn revoke(
 ) -> Result<Json<Revocation>, AuthError> {
     let Json(user) = me(state.clone(), headers).await?;
     let Json(req) = body.map_err(|_| AuthError::Invalid)?;
-    let key = public_key(&req.device_public_key).ok_or(AuthError::Invalid)?;
-    let device_id = hex::encode(Sha256::digest(key));
-    let root: Vec<u8> = sqlx::query_scalar("SELECT root_public_key FROM identities WHERE id=$1")
-        .bind(&user.global_identity_id)
-        .fetch_one(&state.pool)
-        .await?;
-    let message = kova_protocol::device_revocation(&user.global_identity_id, &device_id);
-    verify_signature(&root, &message, &req.signature)?;
-    sqlx::query("INSERT INTO devices(identity_id,device_id,public_key,revoked_at,revocation_signature) VALUES ($1,$2,$3,now(),$4)
-        ON CONFLICT (identity_id,device_id) DO UPDATE SET revoked_at=coalesce(devices.revoked_at,excluded.revoked_at),revocation_signature=excluded.revocation_signature")
-        .bind(user.global_identity_id).bind(device_id).bind(key.as_slice()).bind(hex::decode(&req.signature).map_err(|_| AuthError::Invalid)?).execute(&state.pool).await?;
+    super::revocations::record(
+        &state.pool,
+        &user.global_identity_id,
+        &req.device_public_key,
+        &req.signature,
+    )
+    .await?;
     Ok(Json(req))
 }

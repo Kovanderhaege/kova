@@ -28,10 +28,11 @@ def digest(value):
 def authorize(root, device):
     root_key, device_key = public(root), public(device)
     identity, device_id = "kova1-" + digest(root_key), digest(device_key)
-    expiry = int(time.time()) + 90 * 86400
-    message = f"kova-device-v1\n{identity}\n{device_id}\n{device_key}\n{expiry}"
+    issued = int(time.time())
+    expiry = issued + 86400
+    message = f"kova-device-v2\n{identity}\n{device_id}\n{device_key}\n{issued}\n{expiry}"
     return dict(root_public_key=root_key, device_public_key=device_key,
-                device_authorization=dict(expires_at=expiry, signature=root.sign(message.encode()).hex()))
+                device_authorization=dict(issued_at=issued, expires_at=expiry, signature=root.sign(message.encode()).hex()))
 
 
 def prove(device, certificate, challenge, origin, invite=None):

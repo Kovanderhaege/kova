@@ -116,7 +116,8 @@ def main():
         second = authorize(root, other)
         cookie_b, same_user = verify(b, prove(other, second, challenge(b, second), origin), 200)
         assert user == same_user == call(a, "/me", 200)[1] and cookie_a != cookie_b
-        assert {"HttpOnly", "Path=/", "SameSite=Lax", "Max-Age=604800"} <= set(cookie_a.split("; "))
+        assert {"HttpOnly", "Path=/", "SameSite=Lax"} <= set(cookie_a.split("; "))
+        assert 0 < int(next(v.split("=",1)[1] for v in cookie_a.split("; ") if v.startswith("Max-Age="))) <= 86400
         for header in (cookie_a, cookie_b):
             token = bytes.fromhex(header.split(";", 1)[0].split("=", 1)[1])
             assert len(token) == 32

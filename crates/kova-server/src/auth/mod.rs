@@ -2,6 +2,7 @@ mod accounts;
 mod attempts;
 mod devices;
 mod proof;
+mod revocations;
 
 pub use accounts::bootstrap;
 
@@ -62,6 +63,10 @@ pub fn routes(pool: PgPool, origin: &str) -> Result<Router, Box<dyn Error>> {
         .route("/auth/logout", post(logout))
         .route("/me", get(me))
         .route("/identity/devices", get(devices::list))
+        .route(
+            "/identity/revocations",
+            get(revocations::list).post(revocations::publish),
+        )
         .route("/identity/devices/revoke", post(devices::revoke))
         .layer(DefaultBodyLimit::max(8192))
         .layer(middleware::from_fn_with_state(auth.clone(), protect))

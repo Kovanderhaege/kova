@@ -150,6 +150,8 @@ pub(super) struct VerifyRequest {
 }
 #[derive(Deserialize)]
 struct Authorization {
+    #[serde(default)]
+    issued_at: i64,
     expires_at: i64,
     signature: String,
 }
@@ -193,8 +195,21 @@ pub(super) async fn verify(
     if !(1..=253402300799).contains(&expiry) {
         return Err(AuthError::Credentials);
     }
-    let attestation =
-        kova_protocol::device_authorization(&identity, &device_id, &req.device_public_key, expiry);
+    let issued = req.device_authorization.issued_at;
+    let now: i64 =
+        sqlx::query_scalar("SELECT floor(extract(epoch FROM clock_timestamp()))::bigint")
+            .fetch_one(&mut *tx)
+            .await?;
+    if !kova_protocol::authorization_is_fresh(issued, expiry, now) {
+        return Err(AuthError::Credentials);
+    }
+    let attestation = kova_protocol::device_authorization_v2(
+        &identity,
+        &device_id,
+        &req.device_public_key,
+        issued,
+        expiry,
+    );
     verify_signature(&root, &attestation, &req.device_authorization.signature)?;
     verify_signature(&device, &ch.message(), &req.signature)?;
 

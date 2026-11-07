@@ -16,6 +16,7 @@ jobs:
       - run: python -m pip install 'cryptography>=41'
       - run: python crates/kova-server/tests/persistence.py
       - run: python crates/kova-server/tests/sessions.py
+      - run: python crates/kova-server/tests/revocations.py
       - run: python crates/kova-server/tests/backup_restore.py
 
   windows:
