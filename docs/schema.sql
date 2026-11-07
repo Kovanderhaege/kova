@@ -1,4 +1,4 @@
--- Documentation du schéma réellement appliqué : migrations 0001 à 0003.
+-- Documentation du schéma réellement appliqué : migrations 0001 à 0005.
 -- Source de vérité : crates/kova-server/migrations.
 
 CREATE TABLE users (
@@ -121,3 +121,12 @@ INSERT INTO identity_revocations(identity_id,device_id,event_id,payload,signatur
 SELECT identity_id,device_id,encode(sha256(convert_to(payload,'UTF8')),'hex'),payload,revocation_signature,revoked_at
 FROM (SELECT *, 'kova-revoke-v1' || chr(10) || identity_id || chr(10) || device_id AS payload
       FROM devices WHERE revoked_at IS NOT NULL AND revocation_signature IS NOT NULL) AS historical;
+
+-- Migration 0005 : exclusions communautaires persistantes.
+CREATE TABLE community_exclusions (
+    community_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES users(id),
+    excluded_by uuid NOT NULL REFERENCES users(id),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (community_id, user_id)
+);

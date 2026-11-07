@@ -215,8 +215,7 @@ pub(super) async fn verify(
 
     let mut joined = false;
     if let Some(hash) = ch.invite_hash {
-        let community: String = sqlx::query_scalar("DELETE FROM invites WHERE token_hash=$1 AND expires_at > clock_timestamp() RETURNING community_id::text")
-            .bind(hash).fetch_optional(&mut *tx).await?.ok_or(AuthError::Invite)?;
+        let community = crate::communities::consume_invite(&mut tx, &hash).await?;
         sqlx::query("INSERT INTO identities VALUES ($1,$2) ON CONFLICT (id) DO NOTHING")
             .bind(&identity)
             .bind(root.as_slice())
@@ -244,8 +243,7 @@ pub(super) async fn verify(
             sqlx::query_scalar("INSERT INTO users (id,handle,display_name,global_identity_id) VALUES (gen_random_uuid(),$1,$2,$3) ON CONFLICT (handle) DO NOTHING RETURNING id::text")
                 .bind(profile.handle).bind(profile.display_name.trim()).bind(&identity).fetch_optional(&mut *tx).await?.ok_or(AuthError::Conflict)?
         };
-        joined = sqlx::query("INSERT INTO memberships (community_id,user_id) VALUES ($1::text::uuid,$2::text::uuid) ON CONFLICT DO NOTHING")
-            .bind(community).bind(user).execute(&mut *tx).await?.rows_affected() == 1;
+        joined = crate::communities::join_member(&mut tx, &community, &user).await?;
     }
     let user: User = sqlx::query_as("SELECT id::text,global_identity_id,handle,display_name FROM users WHERE global_identity_id=$1")
         .bind(&identity).fetch_optional(&mut *tx).await?.ok_or(AuthError::Credentials)?;

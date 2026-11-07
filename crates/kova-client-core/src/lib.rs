@@ -161,6 +161,7 @@ impl Identity {
 }
 
 mod cache;
+mod communities;
 pub mod pairing;
 pub mod recovery;
 mod transport;

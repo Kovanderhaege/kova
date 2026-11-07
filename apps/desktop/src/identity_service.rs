@@ -5,6 +5,10 @@ use std::path::Path;
 use zeroize::Zeroizing;
 
 pub enum Command {
+    Community {
+        origin: String,
+        command: crate::community_service::Command,
+    },
     Inspect,
     Create,
     Backup {
@@ -80,6 +84,9 @@ fn propagate(cache: &Cache) -> Result<String> {
 pub fn execute(profile: &str, command: Command) -> Result<String> {
     let vault = Vault::new(profile)?;
     match command {
+        Command::Community { origin, command } => {
+            crate::community_service::execute(&vault, &origin, command)
+        }
         Command::Inspect => {
             if vault.has_identity()? {
                 describe(&vault.identity()?)

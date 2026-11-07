@@ -33,6 +33,37 @@ pub struct Instance {
     http: reqwest::blocking::Client,
 }
 impl Instance {
+    pub(crate) fn community_request(
+        &self,
+        session: &Session,
+        method: reqwest::Method,
+        path: &str,
+        body: Option<Value>,
+    ) -> Result<Value> {
+        self.authorize(session)?;
+        let mut request = self
+            .http
+            .request(method, format!("{}/api/v1{path}", self.origin))
+            .header("Origin", &self.origin)
+            .bearer_auth(&session.token);
+        if let Some(body) = body {
+            request = request.json(&body);
+        }
+        let response = request.send()?;
+        let status = response.status();
+        if status == reqwest::StatusCode::NO_CONTENT {
+            return Ok(Value::Null);
+        }
+        let result: Value = response.json()?;
+        if !status.is_success() {
+            let message = result["error"]["message"]
+                .as_str()
+                .unwrap_or("Community request failed");
+            return Err(format!("{status}: {message}").into());
+        }
+        Ok(result)
+    }
+
     pub fn new(origin: &str) -> Result<Self> {
         validate_origin(origin)?;
         Ok(Self {

@@ -16,14 +16,14 @@ Le chemin de référence est `docs/tech-stack.md`, conformément à `AGENTS.md`.
 - **Versions :** Axum `0.8` → **0.8.9**, Tokio `1` → **1.54.1**, Serde `1` → **1.0.229**, serde_json `1` → **1.0.154**.
 - **Approche :** routeur Axum, état partagé via `State`, écoute `TcpListener`, `axum::serve` et arrêt gracieux. Tokio active `macros`, `rt-multi-thread`, `net`, `signal`, `time`. Échanges HTTP JSON sous `/api/v1` ; sonde `/health/ready` interrogeant réellement PostgreSQL.
 - **Raison :** prolonger le serveur modulaire existant avec le même runtime que SQLx. Ne pas reprendre les exemples d'anciennes versions reposant sur `axum::Server`.
-- **Limite :** les routes communautaires, le chat et WebSocket ne sont pas implémentés ; leur présence dans la cible MVP ne constitue pas un choix de bibliothèque supplémentaire.
+- **Limite :** le chat et WebSocket ne sont pas implémentés ; leur présence dans la cible MVP ne constitue pas un choix de bibliothèque supplémentaire.
 - **Références :** [Axum 0.8.9](https://docs.rs/axum/0.8.9/axum/), [Tokio 1.54.1](https://docs.rs/tokio/1.54.1/tokio/). Vérifiées le 2026-11-06.
 
 ## 3. Persistance serveur et migrations
 
 - **Versions :** PostgreSQL **17**, image `postgres:17-alpine` (mineure et digest non figés) ; SQLx `0.8` → **0.8.6**.
 - **Approche :** pool PostgreSQL, SQL explicite et transactions ; SQLx sans fonctionnalités par défaut, avec `runtime-tokio`, `postgres`, `macros`, `migrate`. Les migrations embarquées par `sqlx::migrate!()` sont appliquées au démarrage ; `build.rs` surveille leur répertoire.
-- **Raison :** conserver les garanties transactionnelles des sessions, invitations et adhésions. Les migrations déjà appliquées restent immuables ; toute évolution passe par une nouvelle migration. Les fichiers `docs/schema.sql` et `docs/migrations.md` décrivent des propositions, pas le schéma effectivement livré.
+- **Raison :** conserver les garanties transactionnelles des sessions, invitations et adhésions. Les migrations déjà appliquées restent immuables ; toute évolution passe par une nouvelle migration. `docs/schema.sql` reproduit les migrations livrées ; `docs/migrations.md` distingue celles-ci des propositions futures.
 - **Limites :** PostgreSQL 17 appartient à une branche supportée selon la politique officielle consultée. SQLx n'active aucun backend TLS dans le manifeste actuel : ne pas considérer la connexion à une base distante comme sécurisée sans décision de déploiement supplémentaire.
 - **Références :** [SQLx 0.8.6, runtime et TLS](https://docs.rs/sqlx/0.8.6/sqlx/), [support PostgreSQL](https://www.postgresql.org/support/versioning/). Vérifiées le 2026-11-06.
 
@@ -88,3 +88,12 @@ Références consultées le 2026-11-06 : [reqwest 0.12.28](https://docs.rs/reqwe
 - UI : travail réseau/chiffrement/coffre hors thread GPUI, via tâches de fond puis mise à jour d'entité ; contexte GPUI 0.2.2 existant. Référence : https://docs.rs/gpui/0.2.2/gpui/struct.Context.html . Le jalon 2 ne sélectionne pas de protocole E2EE de messages.
 
 - Correctif de revue (2026-11-06) : autorisation `kova-device-v2` incluant `issued_at` et `expires_at`, durée totale positive ≤ 86400 s, émission non future et expiration future. Le contrôle de seule échéance glissante laisserait ressurgir des certificats v1 de longue durée pendant leur dernier jour. Le serveur refuse les autorisations v1, sans changer leurs anciens octets canoniques ; les clients doivent renouveler depuis la racine. Les domaines challenge/révocation restent v1. Ed25519/ring restent inchangés ; référence vérifiée : https://www.rfc-editor.org/rfc/rfc8032#section-5.1.7 (vérification de la signature sur le message exact). La fenêtre 24 h et le format applicatif sont une décision du projet, pas une prescription de cette RFC.
+
+## 10. Communautés — 7 novembre 2026
+
+- Stack inchangée : Axum 0.8.9, SQLx 0.8.6, PostgreSQL 17, reqwest 0.12.28 et GPUI 0.2.2. Toute identité ayant un profil local peut créer une communauté ; l'administrateur d'instance n'obtient aucun accès implicite aux communautés.
+- Propriétaire dérivé de `communities.owner_id`, rôles stockés `member`/`moderator`. Membres : lecture ; propriétaire/modérateurs : salons et invitations ; propriétaire seul : attribution des rôles ; exclusion par propriétaire, ou par modérateur d'un simple membre. Propriétaire non excluable, pas de transfert dans ce jalon.
+- Création communauté/adhésion propriétaire/salon `général` dans une transaction. Les opérations ciblées verrouillent d'abord la communauté (`FOR UPDATE`), puis relisent les droits dans une nouvelle requête ; adhésion par invitation et exclusion suivent le même ordre. Cela sérialise les mutations d'une communauté et évite les décisions sur un rôle périmé après attente de verrou. La liste générale filtre directement par adhésion.
+- Exclusion persistante du profil local (lié de façon unique à l'identité), dans une nouvelle table, puis suppression de l'adhésion dans la même transaction. Une nouvelle invitation ne contourne pas l'exclusion. Les autres communautés et sessions restent valides. Aucun droit MP n'en découle.
+- Invitations : jeton aléatoire de 32 octets, seule empreinte SHA-256 stockée, usage unique, durée demandée entre 1 seconde et 7 jours ; réutilisation du challenge signé join pour la première connexion ; `/invites/redeem` pour une session déjà active. Durée proposée dans le desktop : 24 h. Pas de jeton en URL ni en cache client. Ressource invisible : 404 ; droit insuffisant d'un membre : 403. Limite de corps existante et réponses `no-store` conservées.
+- Références consultées le 2026-11-07 : [verrous PostgreSQL 17](https://www.postgresql.org/docs/17/explicit-locking.html), [transactions SQLx 0.8.6 et rollback à l'abandon](https://docs.rs/sqlx/0.8.6/sqlx/struct.Transaction.html). La matrice de droits et la durée des invitations sont des choix du produit, pas des prescriptions de ces sources.

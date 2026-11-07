@@ -10,8 +10,8 @@ Les secrets racine, appareil et E2EE restent sur les clients. Les profils, adhé
 | Vol de session | Empreinte SHA-256 côté base, cookie HttpOnly, contrôle Origin, expiration, révocation appareil | Desktop : une heure maximum, coffre Windows ; cookie : borné par le certificat, donc au plus 24 heures ; ne pas journaliser les jetons |
 | Compromission de l'instance | Aucun secret privé d'identité reçu | Messages communautaires lisibles ; E2EE non implémenté ; serveur peut mentir ou supprimer des données |
 | Appareil compromis | Révocation signée locale conservée avec sa preuve, contrôle à chaque accès authentifié | Transmission aux instances connues ; fenêtre de retard bornée par le certificat v2 de 24 h pour un appareil sans racine |
-| Invitation volée/concurrente | Jeton aléatoire, empreinte, expiration et consommation transactionnelle | Premier consommateur gagne ; routes d'émission et exclusions à construire |
-| Fuite entre communautés | Adhésion à vérifier à chaque REST et chaque livraison WS | Routes absentes ; tests négatifs obligatoires au jalon 3/4 |
+| Invitation volée/concurrente | Jeton aléatoire, empreinte, expiration et consommation transactionnelle | Premier consommateur gagne ; émission réservée au propriétaire/modérateur, exclusion persistante vérifiée à chaque adhésion |
+| Fuite entre communautés | Adhésion à vérifier à chaque REST et chaque livraison WS | REST communautaire testé au jalon 3 ; WS à implémenter/tester au jalon 4 |
 | Réplica non autorisé | Futur consentement signé d'Alice ET Bob, authentification interserveurs | Aucune API de MP/fédération aujourd'hui ; tests de refus avant ouverture |
 | Suppression/rétention/rejeu MP | Futurs event_id, signatures contextualisées, causalité, réconciliation | Pas de garantie d'effacement, livraison totale ou anonymat ; signaler dépendances manquantes |
 | Client distribué par hébergeur hostile | Desktop signé distribué indépendamment | Packaging et chaîne de mise à jour à définir ; poste compromis hors protection E2EE |

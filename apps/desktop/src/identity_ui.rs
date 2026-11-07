@@ -7,6 +7,8 @@ use zeroize::Zeroizing;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Page {
+    Communities,
+    Moderation,
     Identity,
     Connection,
     Backup,
@@ -18,6 +20,19 @@ enum Page {
 impl Page {
     fn fields(self) -> &'static [(&'static str, bool)] {
         match self {
+            Self::Communities => &[
+                ("Origine exacte de l'instance connectée", false),
+                ("Identifiant de communauté (copier depuis la liste)", false),
+                ("Nom de la nouvelle communauté ou du nouveau salon", false),
+            ],
+            Self::Moderation => &[
+                ("Origine exacte de l'instance connectée", false),
+                ("Identifiant de communauté", false),
+                (
+                    "Identifiant du membre (copier depuis la liste des membres)",
+                    false,
+                ),
+            ],
             Self::Identity => &[],
             Self::Connection => &[
                 (
@@ -53,6 +68,19 @@ impl Page {
     }
     fn actions(self) -> &'static [&'static str] {
         match self {
+            Self::Communities => &[
+                "Mes communautés",
+                "Créer la communauté",
+                "Salons",
+                "Créer le salon",
+                "Membres",
+                "Inviter (24 h)",
+            ],
+            Self::Moderation => &[
+                "Nommer modérateur",
+                "Rétablir membre",
+                "Exclure définitivement",
+            ],
             Self::Identity => &["Afficher l'identité", "Créer une identité"],
             Self::Connection => &[
                 "Se connecter / rejoindre",
@@ -68,6 +96,12 @@ impl Page {
     }
     fn guidance(self) -> &'static str {
         match self {
+            Self::Communities => {
+                "Connectez-vous d'abord à l'instance. Créer une communauté crée aussi son salon général. Pour rejoindre avec une invitation, utilisez Connexion. Les salons sont consultables ; le chat arrive au jalon suivant."
+            }
+            Self::Moderation => {
+                "Seul le propriétaire change les rôles. Un modérateur peut exclure un membre simple. L'exclusion est définitive pour cette communauté, même avec une nouvelle invitation. Vérifiez l'identifiant avant de cliquer."
+            }
             Self::Identity => {
                 "La clé racine est protégée par Windows. Créez une sauvegarde : sa perte sans sauvegarde rend l'identité irrécupérable."
             }
@@ -119,6 +153,51 @@ impl IdentityWindow {
         }
         let value = |index: usize| self.fields[index].read(cx).content.to_string();
         let command = match (self.page, action) {
+            (Page::Communities, action) => {
+                use crate::community_service::Command as Community;
+                Command::Community {
+                    origin: value(0),
+                    command: match action {
+                        0 => Community::List,
+                        1 => Community::Create { name: value(2) },
+                        2 => Community::Channels {
+                            community: value(1),
+                        },
+                        3 => Community::CreateChannel {
+                            community: value(1),
+                            name: value(2),
+                        },
+                        4 => Community::Members {
+                            community: value(1),
+                        },
+                        _ => Community::Invite {
+                            community: value(1),
+                        },
+                    },
+                }
+            }
+            (Page::Moderation, action) => {
+                use crate::community_service::Command as Community;
+                Command::Community {
+                    origin: value(0),
+                    command: match action {
+                        0 => Community::SetRole {
+                            community: value(1),
+                            member: value(2),
+                            role: "moderator",
+                        },
+                        1 => Community::SetRole {
+                            community: value(1),
+                            member: value(2),
+                            role: "member",
+                        },
+                        _ => Community::Exclude {
+                            community: value(1),
+                            member: value(2),
+                        },
+                    },
+                }
+            }
             (Page::Identity, 0) => Command::Inspect,
             (Page::Identity, _) => Command::Create,
             (Page::Connection, 0) => Command::Connect {
@@ -184,6 +263,8 @@ impl Render for IdentityWindow {
         let pages = [
             (Page::Identity, "Identité"),
             (Page::Connection, "Connexion"),
+            (Page::Communities, "Communautés"),
+            (Page::Moderation, "Modération"),
             (Page::Backup, "Sauvegarde"),
             (Page::Request, "Demande"),
             (Page::Approval, "Autoriser"),
@@ -191,21 +272,21 @@ impl Render for IdentityWindow {
             (Page::Revocation, "Révocation"),
         ];
         div().size_full().flex().flex_col().gap_3().p_4().bg(rgb(0x111827)).text_color(rgb(0xe5e7eb))
-            .child(div().text_xl().child("Kova — Identité"))
+            .child(div().text_xl().child("Kova — Identité et communautés"))
             .child("Profil local (default pour votre profil habituel ; nouveau nom pour restaurer ou associer)")
             .child(self.profile.clone())
-            .child(div().flex().gap_2().children(pages.into_iter().enumerate().map(|(index,(page,label))| {
+            .child(div().flex().flex_wrap().gap_2().children(pages.into_iter().enumerate().map(|(index,(page,label))| {
                 div().id(("page",index)).p_2().cursor_pointer().bg(rgb(if self.page==page {0x2563eb} else {0x334155})).child(label)
                     .on_click(cx.listener(move |this,_,_,cx| this.navigate(page,cx)))
             })))
             .child(self.page.guidance())
             .children(self.fields.iter().zip(self.page.fields()).map(|(field,(label,_))| div().flex().flex_col().gap_1().child(*label).child(field.clone())))
-            .child(div().flex().gap_2().children(self.page.actions().iter().enumerate().map(|(index,label)| {
+            .child(div().flex().flex_wrap().gap_2().children(self.page.actions().iter().enumerate().map(|(index,label)| {
                 div().id(("action",index)).p_2().cursor_pointer().bg(rgb(if self.busy {0x475569} else {0x1d4ed8})).child(*label)
                     .on_click(cx.listener(move |this,_,_,cx| this.execute(index,cx)))
             })))
             .child(div().id("result").flex_1().overflow_y_scroll().p_2().bg(rgb(0x1f2937)).child(self.status.clone()))
-            .child(div().id("copy-result").cursor_pointer().child("Copier le résultat public")
+            .child(div().id("copy-result").cursor_pointer().child("Copier le résultat (une invitation est confidentielle)")
                 .on_click(cx.listener(|this,_,_,cx| cx.write_to_clipboard(ClipboardItem::new_string(this.status.clone())))))
     }
 }

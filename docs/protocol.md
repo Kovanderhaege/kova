@@ -23,7 +23,7 @@ Dans ces exemples, `\n` représente un séparateur LF. L'échéance du challenge
 | GET `/identity/devices` | Appareils connus de l'identité sur cette instance ; inclut attestations connues (payload, signature, expiration) et signature de révocation ; valeurs nulles pour preuves historiques absentes |
 | POST `/identity/devices/revoke` | device_public_key et signature racine ; révocation permanente locale, soumission répétable |
 
-Les mutations exigent Origin exact. Erreur commune `{ "error": { "code": "…", "message": "…" } }`. Les endpoints d'auth utilisent 400/401/403/409/429/500. Les routes communautaires devront ajouter 404 pour une ressource invisible. Les tests HTTP restent dans `crates/kova-server/tests/sessions.py` ; les formats et vecteurs cryptographiques ont des tests Rust indépendants.
+Les mutations (POST, PATCH, DELETE) exigent Origin exact. Erreur commune `{ "error": { "code": "…", "message": "…" } }`. Les endpoints d'auth utilisent 400/401/403/409/429/500. Les routes communautaires ajoutent 404 pour une ressource invisible. Les tests HTTP sont dans `crates/kova-server/tests` ; les formats et vecteurs cryptographiques ont des tests Rust indépendants.
 
 ## Sessions desktop implémentées
 
@@ -54,4 +54,27 @@ La demande publique signe `kova-link-request-v1\n{device_public_key}\n{nonce}\n{
 
 ## Contrats futurs
 
-Les routes communautaires, événements WS, MP et fédération de MVP_target sont des propositions, pas des endpoints disponibles. Les MP auront leur version et contexte de signature propres ; ne pas étendre le format d'authentification ni réutiliser les seq locaux. Choix de canonisation, tailles maximales, dépendances et bibliothèque E2EE à figer ensemble avant leur implémentation.
+Les événements WS, MP et fédération de MVP_target sont des propositions, pas des endpoints disponibles. Les MP auront leur version et contexte de signature propres ; ne pas étendre le format d'authentification ni réutiliser les seq locaux. Choix de canonisation, tailles maximales, dépendances et bibliothèque E2EE à figer ensemble avant leur implémentation.
+
+## Communautés locales — jalon 3
+
+Session cookie ou Bearer obligatoire sur toutes ces routes. Les réponses utilisent `Cache-Control: no-store`. Noms : 1–80 caractères après suppression des espaces périphériques, sans caractères de contrôle. Identifiants : UUID locaux ; aucun droit implicite d'administrateur d'instance.
+
+| Méthode et route | Corps / résultat |
+|---|---|
+| GET `/communities` | `{items:[{id,name,owner_id,role}]}` ; uniquement ses adhésions |
+| POST `/communities` | `{name}` ; 201 et communauté ; adhésion propriétaire et salon `général` créés atomiquement |
+| GET `/communities/{id}` | Communauté et rôle du demandeur |
+| GET `/communities/{id}/channels` | `{items:[{id,community_id,name}]}` |
+| POST `/communities/{id}/channels` | `{name}` ; 201 et salon, 409 si nom déjà présent dans cette communauté |
+| GET `/communities/{id}/members` | `{items:[{id,handle,display_name,role}]}` ; rôle effectif `owner`, `moderator` ou `member` |
+| POST `/communities/{id}/invites` | `{expires_in}` en secondes, 1–604800 ; 201 `{invite,community_id,expires_in}` ; jeton de 32 octets hex, usage unique, empreinte seule en base |
+| POST `/invites/redeem` | `{invite}` ; session existante ; 201 `{community_id}` si nouvelle adhésion, 200 si déjà membre ; invitation consommée dans les deux cas |
+| PATCH `/communities/{id}/members/{user_id}` | `{role:"member"\|"moderator"}` ; propriétaire seul, cible autre que propriétaire ; 204 |
+| DELETE `/communities/{id}/members/{user_id}` | Corps vide ; exclusion persistante et retrait d'adhésion atomiques ; 204 |
+
+Les membres lisent communauté, salons et membres. Propriétaire/modérateurs créent salons et invitations ; seul le propriétaire attribue les rôles. Un modérateur exclut seulement un membre simple ; le propriétaire peut aussi exclure un modérateur. Personne ne peut exclure le propriétaire ni s'exclure par cette route. Pas de transfert de propriété ou de levée d'exclusion dans ce jalon.
+
+Une ressource absente ou une communauté dont le demandeur n'est pas membre renvoie 404 ; un membre sans le droit requis reçoit 403. Une invitation invalide, expirée ou consommée reçoit 400. L'exclusion est vérifiée aussi à la rédemption et au challenge signé `join` : une nouvelle invitation ne la contourne pas (403). Un échec annule la consommation. Les profils historiques et les autres communautés/sessions restent intacts ; aucun droit MP n'en découle.
+
+La première connexion garde le parcours challenge `join` + `/auth/verify` du jalon 2, avec profil local et session créés dans la même transaction que l'adhésion. Les opérations d'une communauté et les rédemptions verrouillent sa ligne avant de relire droits/exclusions. Une lecture déjà terminée ne peut pas être effacée chez le client ; après commit de l'exclusion, toute nouvelle lecture est refusée. Les abonnements WS relèvent du jalon 4.

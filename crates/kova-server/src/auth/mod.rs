@@ -26,8 +26,8 @@ use std::{
 
 use url::{Host, Url};
 
-struct Auth {
-    pool: PgPool,
+pub(crate) struct Auth {
+    pub(crate) pool: PgPool,
     origin: String,
     secure: bool,
 
@@ -68,6 +68,7 @@ pub fn routes(pool: PgPool, origin: &str) -> Result<Router, Box<dyn Error>> {
             get(revocations::list).post(revocations::publish),
         )
         .route("/identity/devices/revoke", post(devices::revoke))
+        .merge(crate::communities::routes())
         .layer(DefaultBodyLimit::max(8192))
         .layer(middleware::from_fn_with_state(auth.clone(), protect))
         .with_state(auth))
@@ -75,9 +76,12 @@ pub fn routes(pool: PgPool, origin: &str) -> Result<Router, Box<dyn Error>> {
 
 async fn protect(State(auth): State<Arc<Auth>>, request: Request, next: Next) -> Response {
     let mut origins = request.headers().get_all(header::ORIGIN).iter();
-    let mut response = if request.method() == Method::POST
-        && (origins.next().map(|v| v.as_bytes()) != Some(auth.origin.as_bytes())
-            || origins.next().is_some())
+    let mut response = if !matches!(
+        *request.method(),
+        Method::GET | Method::HEAD | Method::OPTIONS
+    ) && (origins.next().map(|v| v.as_bytes())
+        != Some(auth.origin.as_bytes())
+        || origins.next().is_some())
     {
         AuthError::Origin.into_response()
     } else {
@@ -90,7 +94,7 @@ async fn protect(State(auth): State<Arc<Auth>>, request: Request, next: Next) ->
 }
 
 #[derive(Debug)]
-enum AuthError {
+pub(crate) enum AuthError {
     Invalid,
     Session,
     Credentials,
@@ -99,12 +103,22 @@ enum AuthError {
     Invite,
     Conflict,
     Internal,
+    NotFound,
+    Forbidden,
+    Duplicate,
 }
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         use AuthError::*;
         let (status, code, message) = match self {
+            NotFound => (StatusCode::NOT_FOUND, "not_found", "Ressource introuvable."),
+            Forbidden => (StatusCode::FORBIDDEN, "forbidden", "Droits insuffisants."),
+            Duplicate => (
+                StatusCode::CONFLICT,
+                "duplicate_name",
+                "Nom de salon déjà utilisé.",
+            ),
             Invalid => (
                 StatusCode::BAD_REQUEST,
                 "invalid_body",
@@ -156,9 +170,9 @@ impl From<sqlx::Error> for AuthError {
 }
 
 #[derive(Serialize, sqlx::FromRow)]
-struct User {
+pub(crate) struct User {
     global_identity_id: String,
-    id: String,
+    pub(crate) id: String,
     handle: String,
     display_name: String,
 }
@@ -195,9 +209,13 @@ fn session_credentials(headers: &HeaderMap) -> Result<(Vec<u8>, &'static str), A
 }
 
 async fn me(State(auth): State<Arc<Auth>>, headers: HeaderMap) -> Result<Json<User>, AuthError> {
+    current_user(&auth.pool, &headers).await.map(Json)
+}
+
+pub(crate) async fn current_user(pool: &PgPool, headers: &HeaderMap) -> Result<User, AuthError> {
     let (hash, transport) = session_credentials(&headers)?;
     sqlx::query_as("SELECT u.id::text, u.global_identity_id, u.handle, u.display_name FROM sessions s JOIN users u ON u.id=s.user_id JOIN devices d ON (d.identity_id,d.device_id)=(s.identity_id,s.device_id) WHERE d.revoked_at IS NULL AND s.token_hash=$1 AND s.expires_at > now() AND s.transport=$2")
-        .bind(hash).bind(transport).fetch_optional(&auth.pool).await?.map(Json).ok_or(AuthError::Session)
+        .bind(hash).bind(transport).fetch_optional(pool).await?.ok_or(AuthError::Session)
 }
 
 async fn logout(
