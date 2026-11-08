@@ -1,129 +1,224 @@
-# Technical Decision & Documentation Policy
 
-# Project workflow
+# Kova — Project Engineering Policy
 
-- Automatically create a Git commit when a milestone or ticket is complete, after running the relevant checks. No additional confirmation is needed.
-- Keep each commit focused on the completed milestone or ticket, with a clear message describing the change.
-- Stage only changes belonging to the completed work; do not include unrelated user changes.
-- If checks fail or the work is incomplete, report the blocker rather than committing it as completed work.
-- This authorization covers local commits only. Push only when the user requests it.
+## 1. Scope and Priorities
 
-## 1. Core Principles
+This file defines project-specific engineering rules.
 
-- Prefer modern, stable, officially recommended technologies and APIs.
-- Never assume that a technology, API, dependency, or architectural pattern is still recommended based solely on training knowledge.
-- Never introduce deprecated, legacy, experimental, or unmaintained solutions into new code without a documented justification.
-- Respect the project's existing architecture and supported versions. Do not modernize unrelated code without explicit justification.
-- Prefer simplicity, maintainability, security, and compatibility over novelty.
-- Do not equate "latest" with "best": prefer actively supported stable versions suitable for the project.
+Global agent orchestration, delegation, and general
+collaboration rules are defined in ~/.codex/AGENTS.md.
 
-## 2. Mandatory Research Triggers
+Priority order:
+1. Explicit user requirements.
+2. Project architecture and established conventions.
+3. Validated decisions in docs/tech-stack.md.
+4. Current official documentation.
+5. General engineering best practices.
 
-Before making a NEW technical decision, consult up-to-date documentation when the task involves:
+If instructions conflict, report the conflict rather
+than silently overriding a project constraint.
 
-- Selecting a framework, library, dependency, or runtime.
-- Choosing an architecture or infrastructure component.
-- Introducing a new API or integration pattern.
-- Configuring deployment, authentication, messaging, persistence, or security.
-- Selecting between competing approaches with significant maintenance implications.
-- Using a feature whose stability, deprecation status, or recommended usage is uncertain.
+## 2. Engineering Principles
 
-Research is NOT required for:
-- Routine implementation using already approved technologies.
-- Small bug fixes unrelated to technical decisions.
-- Refactoring that preserves established architecture.
-- Previously validated decisions whose assumptions remain applicable.
+- Prefer modern, stable, maintained technologies.
+- Favor simplicity, security, performance, and maintainability.
+- Avoid unnecessary dependencies and abstractions.
+- Respect existing architecture and supported versions.
+- Do not introduce deprecated or legacy solutions into new code.
+- Do not modernize unrelated components without justification.
+- Prefer established project conventions over personal preferences.
+- Avoid speculative implementations and premature optimization.
+- Keep interfaces explicit and components loosely coupled.
+- Preserve compatibility unless a breaking change is approved.
 
-## 3. Research Protocol
+## 3. Technical Decision Policy
 
-When research is required:
+Never assume that a technology, API, dependency, or
+architectural pattern remains recommended based solely
+on training knowledge.
 
-1. Check `docs/tech-stack.md` for an existing validated decision.
-2. Inspect project manifests, lockfiles, configuration, and existing code to determine actual versions and constraints.
-3. If the decision is not already covered, consult current official documentation.
-4. Check deprecations, migration guides, release notes, and compatibility requirements.
-5. Prefer stable, maintained, officially recommended solutions.
-6. Record the decision before implementing it.
+Research is mandatory when:
+- Selecting a new framework, library, or runtime.
+- Introducing an architectural or infrastructure component.
+- Choosing authentication, messaging, or persistence patterns.
+- Introducing unfamiliar or version-sensitive APIs.
+- Making decisions with significant maintenance implications.
+- Encountering uncertain deprecation or compatibility status.
+
+Research is unnecessary for:
+- Routine implementation using validated technologies.
+- Small bug fixes.
+- Refactoring within established architecture.
+- Decisions already validated and still applicable.
+
+### Research Protocol
+
+1. Read docs/tech-stack.md.
+2. Inspect relevant manifests, lockfiles, and existing code.
+3. Reuse validated decisions when still applicable.
+4. Otherwise consult current official documentation.
+5. Verify compatibility, stability, and deprecation status.
+6. Record meaningful new decisions before implementation.
 
 Source priority:
-1. Official documentation for the relevant version.
+1. Official version-specific documentation.
 2. Official release notes and migration guides.
 3. Maintainer-maintained repositories.
-4. Other reliable technical references when official sources are insufficient.
+4. Other reliable technical sources.
 
-Do not treat tutorials, Stack Overflow posts, or old examples as authoritative without verification.
+Never claim a decision was verified without actual verification.
 
-Never claim a choice was verified against current documentation if no such verification occurred. If browsing or documentation tools are unavailable, explicitly report the limitation.
+If documentation tools are unavailable, report the
+limitation instead of inventing confirmation.
 
 ## 4. Technical Decision Memory
 
-Maintain `docs/tech-stack.md` as the project's persistent technical decision register.
+Maintain docs/tech-stack.md as the persistent technical
+decision register.
 
 For each meaningful new decision, record:
-- Technology or component.
-- Selected version or supported version range.
+- Component or technology.
+- Selected version or supported range.
 - Selected approach.
-- Rejected deprecated or legacy alternatives, if relevant.
-- Brief rationale.
+- Rejected legacy alternatives, when relevant.
+- Concise rationale.
 - Official documentation URL.
-- Verification date.
+- Last verification date.
 
-Before researching a previously encountered technology, consult this register.
-
-Reuse an existing decision when:
-- The project context has not materially changed.
-- The selected version remains applicable.
-- No relevant breaking change or deprecation is indicated.
-- The decision still satisfies the current requirements.
-
-Revalidate decisions when:
+Reuse existing decisions unless:
 - A major version changes.
-- A deprecation or compatibility warning appears.
-- A new requirement invalidates the original assumptions.
-- A dependency or security issue requires reconsideration.
+- A relevant deprecation is discovered.
+- Requirements materially change.
+- Compatibility or security issues arise.
+- New evidence invalidates the decision.
 
-Never repeatedly research an unchanged and already validated decision.
+Never repeatedly research unchanged validated decisions.
 
-## 5. Legacy Technology Prevention
+Keep the register concise and actionable.
 
-For new components:
-- Prefer current officially recommended APIs and architectures.
-- Do not copy legacy infrastructure from old tutorials.
-- Avoid compatibility shims and deprecated packages unless required.
-- Avoid adding dependencies already superseded by native framework functionality.
+## 5. Implementation Rules
 
-For existing components:
-- Preserve compatibility unless modernization is in scope.
-- Identify legacy technology rather than silently expanding its usage.
-- Do not introduce a migration merely because a newer version exists.
+- Follow established project conventions.
+- Prefer existing dependencies and native framework APIs.
+- Avoid introducing deprecated packages or compatibility shims.
+- Keep changes limited to the requested scope.
+- Do not introduce unrelated architectural changes.
+- Write readable, maintainable, testable code.
+- Handle errors explicitly and consistently.
+- Never hardcode credentials or sensitive configuration.
+- Preserve public interfaces unless changes are intentional.
+- Update affected documentation when behavior changes.
+- Avoid unnecessary comments that merely restate code.
 
-## 6. Token Efficiency
+### Parallel Implementation
 
-- Read the technical decision register before using external research.
-- Research only the unresolved technical question.
-- Prefer targeted documentation sections over entire documentation sites.
-- Do not repeatedly fetch the same references during a task.
-- Summarize findings into concise, persistent decisions.
-- Avoid copying full documentation pages into the repository or conversation.
-- Do not rewrite existing decisions unless new evidence changes them.
-- Keep the decision register concise and remove redundant explanations.
+When multiple agents implement tasks concurrently:
+- Define file ownership and shared interfaces first.
+- Avoid overlapping write scopes.
+- Preserve compatibility with concurrent work.
+- Do not modify another agent's assigned files.
+- Report integration dependencies to the coordinator.
+- Never treat another agent's unverified changes as stable.
 
-## 7. Implementation Validation
+## 6. Validation and Quality
 
-Before completing a significant technical change:
-- Verify that the implementation matches the approved technical decisions.
-- Check for newly introduced deprecated APIs or unnecessary legacy dependencies.
-- Confirm compatibility with actual project versions.
-- Run relevant tests, builds, and static checks when available.
-- Report any deviation from the approved stack.
+Before declaring a task complete:
+1. Review the actual code changes.
+2. Verify compliance with docs/tech-stack.md.
+3. Check for deprecated APIs or unnecessary dependencies.
+4. Confirm compatibility with project versions.
+5. Run relevant unit tests and integration tests.
+6. Run relevant builds and static checks.
+7. Verify affected interfaces and integration points.
+8. Report any remaining failures or limitations.
 
-## 8. Continuous Improvement
+For multi-agent work, the coordinating agent is
+responsible for final integration and validation.
 
-When an outdated or inappropriate technical choice is discovered:
-1. Correct the implementation if within task scope.
-2. Determine why the outdated choice was selected.
-3. Update `docs/tech-stack.md` with the validated replacement.
-4. Add a concise rule to the project's `AGENTS.md` only if the mistake represents a recurring generalizable pattern.
-5. Avoid duplicating technology-specific decisions across instruction files.
+Do not claim tests passed if they were not executed.
 
-The goal is to prevent recurrence without expanding permanent instructions unnecessarily.
+Do not mark incomplete or failing work as complete.
+
+## 7. Git Workflow
+
+Automatically create a local Git commit when a milestone
+or ticket is complete and relevant checks have passed.
+
+No additional confirmation is required for local commits.
+
+Rules:
+- Keep commits focused on one completed milestone or ticket.
+- Use clear, descriptive commit messages.
+- Stage only files belonging to the completed work.
+- Never include unrelated user changes.
+- Never overwrite or discard uncommitted user changes.
+- Never push unless explicitly requested.
+- If validation fails, report the blocker instead of
+  committing the work as completed.
+
+### Multi-Agent Git Ownership
+
+Only the main coordinating agent may:
+- Stage changes.
+- Create commits.
+- Rebase or reset project history.
+- Perform final integration.
+
+Subagents must never:
+- Create commits.
+- Push changes.
+- Modify the Git index.
+- Reset or rebase branches.
+- Discard changes created by other agents.
+
+The main agent must wait for relevant subagents,
+review their changes, resolve integration issues,
+run final checks, and create the milestone commit.
+
+## 8. Context and Token Efficiency
+
+- Inspect only files relevant to the task.
+- Check the decision register before researching.
+- Research unresolved technical questions only.
+- Prefer targeted documentation sections.
+- Avoid repeatedly fetching the same references.
+- Avoid unnecessary repository-wide scans.
+- Do not duplicate decisions across documentation files.
+- Keep reports concise and focused on actionable results.
+- Avoid generating documentation that provides no lasting value.
+- Do not repeat investigations already completed in the task.
+
+Never sacrifice correctness or verification merely
+to reduce token consumption.
+
+## 9. Continuous Improvement
+
+When an outdated or inappropriate technical choice
+is discovered:
+
+1. Correct it if within task scope.
+2. Identify the cause of the incorrect decision.
+3. Update docs/tech-stack.md with the validated approach.
+4. Update this AGENTS.md only if the issue reveals a
+   recurring, generalizable project-level problem.
+5. Avoid adding redundant or technology-specific rules.
+
+The objective is to prevent recurring errors without
+continuously expanding permanent instructions.
+
+## 10. Completion Criteria
+
+A milestone is complete only when:
+- Requested functionality is implemented.
+- Relevant tests and builds pass.
+- Integration is verified.
+- Project technical decisions are respected.
+- Required documentation is updated.
+- No known blocking issues remain.
+- A focused local commit has been created.
+
+The final report must summarize:
+- Implemented changes.
+- Validation performed and its results.
+- Commit identifier, if created.
+- Remaining limitations, if any.
