@@ -1,5 +1,5 @@
 //! Client-only identity, origin-scoped sessions and non-secret SQLite state.
-//! No server dependency and no E2EE keys or protocol at this milestone.
+//! No server dependency; private messaging delegates MLS to kova-crypto.
 use chrono::{DateTime, Utc};
 use ring::{
     rand::SystemRandom,
@@ -162,6 +162,7 @@ impl Identity {
 
 mod cache;
 mod communities;
+pub mod dm;
 pub mod pairing;
 pub mod recovery;
 mod transport;

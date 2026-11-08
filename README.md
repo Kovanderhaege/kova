@@ -10,11 +10,13 @@ Le MVP vise un client desktop Rust/GPUI, une identité globale, des communautés
 
 Le socle Rust/Axum démarre avec PostgreSQL et applique ses migrations. Le jalon 2 est terminé pour Windows : identité Ed25519 globale, profils locaux, authentification par challenge signé, coffre natif, récupération chiffrée, association et révocation d'appareils. Les preuves et limites figurent dans le [bilan du jalon](docs/migration-plan.md#finalisation-du-jalon-2--7-novembre-2026).
 
-Le workspace comprend le serveur, le protocole, la vérification d’identité, `kova-client-core` et un prototype GPUI Windows dans `apps/desktop`. Les bibliothèques clientes ne dépendent pas du serveur. Les sessions desktop Bearer durent au plus une heure ; le client Windows utilise le coffre natif. Le jalon 3 ajoute les communautés locales, salons, invitations à usage unique, rôles et exclusions persistantes, accessibles par HTTP et depuis le prototype Windows. Le jalon 4 ajoute le chat public HTTP/WebSocket, le cache SQLite et la reprise après coupure dans le prototype Windows. Les MP restent à implémenter.
+Le workspace comprend le serveur, le protocole, la vérification d’identité, `kova-client-core` et un prototype GPUI Windows dans `apps/desktop`. Les bibliothèques clientes ne dépendent pas du serveur. Les sessions desktop Bearer durent au plus une heure ; le client Windows utilise le coffre natif. Le jalon 3 ajoute les communautés locales, salons, invitations à usage unique, rôles et exclusions persistantes, accessibles par HTTP et depuis le prototype Windows. Le jalon 4 ajoute le chat public HTTP/WebSocket, le cache SQLite et la reprise après coupure dans le prototype Windows. Le jalon 5 ajoute les conversations privées 1:1 MLS, la vérification explicite des appareils et le cache local chiffré. La réplication MP reste à implémenter.
 
 Voir le [bilan et plan de migration](docs/migration-plan.md), les [domaines](docs/architecture.md), le [modèle de menace](docs/threat-model.md), les [contrats](docs/protocol.md), la [réplication proposée](docs/replication.md) et les [migrations proposées](docs/migrations.md).
 
 Voir aussi le [prototype Windows et ses prérequis](docs/windows-spike.md) et la [politique de licence et de modèle économique](docs/decisions/licensing.md). Le parcours d’identité Windows est décrit dans [le guide desktop](docs/windows-identity.md). Le parcours communautaire est décrit dans [le guide Windows](docs/windows-communities.md).
+
+Le parcours privé est décrit dans [le guide MP Windows](docs/windows-dm.md), avec ses limites de récupération, de durée des attestations et de support multi-appareils. Le choix OpenMLS est détaillé dans [la décision E2EE](docs/decisions/e2ee.md).
 
 Le parcours de chat est décrit dans [le guide Windows](docs/windows-chat.md). Les messages communautaires sont lisibles par leur instance ; ils ne sont pas chiffrés de bout en bout.
 

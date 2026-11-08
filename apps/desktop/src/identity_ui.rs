@@ -10,6 +10,7 @@ enum Page {
     Chat,
     Communities,
     Moderation,
+    DirectMessages,
     Identity,
     Connection,
     Backup,
@@ -38,6 +39,19 @@ impl Page {
                     "Identifiant du membre (copier depuis la liste des membres)",
                     false,
                 ),
+            ],
+            Self::DirectMessages => &[
+                ("Origine exacte de l'instance connectée", false),
+                (
+                    "Identité globale du correspondant (vérifiée par canal sûr)",
+                    false,
+                ),
+                (
+                    "Empreinte complète de son appareil vérifiée hors bande",
+                    false,
+                ),
+                ("Identifiant global de conversation", false),
+                ("Message privé", false),
             ],
             Self::Identity => &[],
             Self::Connection => &[
@@ -95,6 +109,16 @@ impl Page {
                 "Rétablir membre",
                 "Exclure définitivement",
             ],
+            Self::DirectMessages => &[
+                "Publier mon appareil",
+                "Lister les conversations de l'instance",
+                "Créer une conversation",
+                "Accepter la conversation sélectionnée",
+                "Synchroniser",
+                "Envoyer",
+                "Réessayer l'envoi en attente",
+                "Hors ligne (cache local)",
+            ],
             Self::Identity => &["Afficher l'identité", "Créer une identité"],
             Self::Connection => &[
                 "Se connecter / rejoindre",
@@ -118,6 +142,9 @@ impl Page {
             }
             Self::Moderation => {
                 "Seul le propriétaire change les rôles. Un modérateur peut exclure un membre simple. L'exclusion est définitive pour cette communauté, même avec une nouvelle invitation. Vérifiez l'identifiant avant de cliquer."
+            }
+            Self::DirectMessages => {
+                "Vérifiez l'identité et l'empreinte de l'appareil par un canal indépendant avant toute création ou acceptation. Le contenu est chiffré de bout en bout. Les conversations restent sur cette instance au jalon 5, avec un appareil par personne."
             }
             Self::Identity => {
                 "La clé racine est protégée par Windows. Créez une sauvegarde : sa perte sans sauvegarde rend l'identité irrécupérable."
@@ -292,6 +319,29 @@ impl IdentityWindow {
                     },
                 }
             }
+            (Page::DirectMessages, action) => Command::DirectMessages {
+                origin: value(0),
+                command: match action {
+                    0 => crate::dm_service::Command::Publish,
+                    1 => crate::dm_service::Command::List,
+                    2 => crate::dm_service::Command::Create {
+                        peer_identity: value(1),
+                        peer_device: value(2),
+                    },
+                    3 => crate::dm_service::Command::Accept {
+                        id: value(3),
+                        peer_identity: value(1),
+                        peer_device: value(2),
+                    },
+                    4 => crate::dm_service::Command::Sync { id: value(3) },
+                    5 => crate::dm_service::Command::Send {
+                        id: value(3),
+                        body: value(4),
+                    },
+                    6 => crate::dm_service::Command::Retry { id: value(3) },
+                    _ => crate::dm_service::Command::Offline { id: value(3) },
+                },
+            },
             (Page::Identity, 0) => Command::Inspect,
             (Page::Identity, _) => Command::Create,
             (Page::Connection, 0) => Command::Connect {
@@ -352,6 +402,12 @@ impl IdentityWindow {
                         cx.notify();
                     });
                 }
+                if this.page == Page::DirectMessages && matches!(action, 5 | 6) && success {
+                    this.fields[4].update(cx, |input, cx| {
+                        input.reset();
+                        cx.notify();
+                    });
+                }
                 this.operation_status = if success {
                     "Opération terminée.".into()
                 } else {
@@ -373,6 +429,7 @@ impl Render for IdentityWindow {
             (Page::Connection, "Connexion"),
             (Page::Communities, "Communautés"),
             (Page::Chat, "Chat"),
+            (Page::DirectMessages, "MP chiffrés"),
             (Page::Moderation, "Modération"),
             (Page::Backup, "Sauvegarde"),
             (Page::Request, "Demande"),

@@ -22,6 +22,8 @@ pub fn verify_signature(key: &[u8], message: &str, signature: &str) -> bool {
         .is_ok()
 }
 
+pub mod dm;
+
 #[cfg(test)]
 mod tests {
     use super::*;

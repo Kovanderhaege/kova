@@ -1,5 +1,15 @@
 # Registre des décisions techniques
 
+## MP privés — 8 novembre 2026
+
+Cette section remplace les réserves historiques « E2EE à sélectionner » ci-dessous ; la réplication reste à concevoir.
+
+- MLS RFC 9420 via OpenMLS `=0.8.1`, fournisseur Libcrux `=0.3.1` et credentials Basic `=0.5.0`, isolés dans `kova-crypto` côté client. Suite X25519/AES-128-GCM/SHA-256/Ed25519, clés distinctes de l'authentification Kova. OpenMLS est pré-1.0 et le toolchain local est Rust 1.99.1. Choix borné au prototype, comparaison Signal, audit et limites détaillés dans [la décision E2EE](decisions/e2ee.md). Aucune dépendance MLS du serveur.
+- Un appareil explicitement vérifié par participant dans chaque conversation. Le KeyPackage MLS est lié par signature à l'identité et à l'autorisation d'appareil v2 ; le Welcome doit produire exactement les deux credentials et clés de signature attendus. Aucun ajout, commit MLS distant ou transfert d'historique implicite. Après expiration des attestations initiales (au plus 24 h), nouvel échange de preuves et nouvelle conversation nécessaires ; pas de renouvellement de roster dans ce jalon.
+- Enveloppes : tuples JSON typés UTF-8, domaines `kova-dm-device-v1`, `kova-dm-conversation-v1`, `kova-dm-event-v1`, tableaux de parents triés. Le plaintext MLS lie également identifiant d'événement, conversation et parents. La signature d'appareil porte sur les octets canoniques exacts, jamais sur le JSON reçu tel quel. Les objets complets embarqués ont l'ordre des champs des structs Rust déclaré dans le contrat.
+- Cache privé : age `=0.12.1` déjà utilisé, destinataire X25519 généré localement et secret dans Windows Credential Manager. SQLite ne reçoit qu'un blob age contenant état MLS, historique et file d'envoi ; commit SQLite FULL sous verrou interprocessus de profil avant tout envoi. Une opération cryptographique travaille sur une copie et ne remplace l'état durable qu'après validation complète. Cette solution MVP réécrit le snapshot entier : coût croissant avec l'historique, pas de garantie de suppression physique des anciennes clés dans WAL/sauvegardes, ni de résistance au rollback par un attaquant contrôlant le disque. Référence consultée le 2026-11-08 : [age 0.12.1 Encryptor, usage programmatique X25519](https://docs.rs/age/0.12.1/age/struct.Encryptor.html).
+- Relais unique explicitement signé dans le manifeste, indépendant des communautés. Création atomique et consommation unique du KeyPackage destinataire ; verrou conversation, déduplication exacte, parents présents et curseur local transactionnel pour les événements. REST paginé ; synchronisation manuelle, pas de notification WS MP ni de réplication dans ce jalon. Les verrous PostgreSQL/SQLx déjà validés pour les jalons 3/4 sont réutilisés.
+
 ## Chat public — 7 novembre 2026
 
 - Axum 0.8.9 avec fonctionnalité `ws`, client synchrone tungstenite 0.30 (Rustls, racines WebPKI), hors thread GPUI. API `read`/`send`, sans anciennes méthodes dépréciées. Handshake avec Bearer et Origin exact, aucun jeton dans les URL, aucune redirection. Rust du workspace satisfait le MSRV 1.85 de tungstenite. Références consultées : https://docs.rs/axum/0.8.9/axum/extract/ws/struct.WebSocketUpgrade.html ; https://docs.rs/tungstenite/0.30.0/tungstenite/ ; https://github.com/snapview/tungstenite-rs/blob/master/CHANGELOG.md .
@@ -75,7 +85,7 @@ Références consultées le 2026-11-06 : [reqwest 0.12.28](https://docs.rs/reqwe
 
 ## 8. Décisions encore ouvertes
 
-- **E2EE :** bibliothèque/protocole à sélectionner après étude de maintenance, licences et audits ; ne pas déduire ce choix des primitives d'identité.
+- **E2EE :** OpenMLS `0.8.1` / MLS (RFC 9420) avec `openmls_libcrux_crypto` `0.3.1` côté client ; ciphersuite X25519/AES-128/Ed25519. MIT ; OpenMLS est encore pré-1.0 et demande un suivi de versions. Les états MLS sont chiffrés et authentifiés par le coffre client, jamais écrits en clair dans SQLite. Ce choix ne clôt pas les consentements et la réplication des jalons 6/7. Voir [la décision E2EE](decisions/e2ee.md).
 - **MP et réplication :** consentement bilatéral, authentification interserveurs, événements, outbox et reprise sont des conceptions dans [replication.md](replication.md), pas une implémentation approuvée à réutiliser telle quelle.
 - **Distribution :** HTTPS public, secrets d'exploitation, signature, mises à jour, support des autres OS et ARM64 restent à décider/valider.
 - **Licences :** orientation serveur `AGPL-3.0-only`, protocole `Apache-2.0` ; répartition restante et licence desktop à finaliser selon [la décision dédiée](decisions/licensing.md). Ce registre n'effectue pas de validation juridique.

@@ -3,6 +3,8 @@ mod chat_service;
 #[cfg(windows)]
 mod community_service;
 #[cfg(windows)]
+mod dm_service;
+#[cfg(windows)]
 mod identity_service;
 #[cfg(windows)]
 mod identity_ui;

@@ -48,7 +48,7 @@ def main():
         saved = query(f"SELECT body FROM messages WHERE channel_id='{channel}' AND seq=1")
         if saved != "Bonjour Kova":
             raise RuntimeError(f"Message relu inattendu : {saved!r}")
-        if query("SELECT version, success FROM _sqlx_migrations ORDER BY version") != "1|t\n2|t\n3|t\n4|t\n5|t\n6|t":
+        if query("SELECT version, success FROM _sqlx_migrations ORDER BY version") != "1|t\n2|t\n3|t\n4|t\n5|t\n6|t\n7|t":
             raise RuntimeError("Historique de migration inattendu")
         print("OK : disponibilité, migrations et message conservé après recréation.")
     finally:

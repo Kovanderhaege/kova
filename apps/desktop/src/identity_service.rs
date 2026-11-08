@@ -14,6 +14,10 @@ pub enum Command {
         origin: String,
         command: crate::community_service::Command,
     },
+    DirectMessages {
+        origin: String,
+        command: crate::dm_service::Command,
+    },
     Inspect,
     Create,
     Backup {
@@ -96,6 +100,9 @@ pub fn execute(profile: &str, command: Command) -> Result<String> {
         } => crate::chat_service::execute(&vault, &origin, &channel, command),
         Command::Community { origin, command } => {
             crate::community_service::execute(&vault, &origin, command)
+        }
+        Command::DirectMessages { origin, command } => {
+            crate::dm_service::execute(&vault, &origin, command)
         }
         Command::Inspect => {
             if vault.has_identity()? {

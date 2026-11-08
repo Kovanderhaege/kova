@@ -70,6 +70,7 @@ pub fn routes(pool: PgPool, origin: &str) -> Result<Router, Box<dyn Error>> {
         .route("/identity/devices/revoke", post(devices::revoke))
         .merge(crate::communities::routes())
         .merge(crate::chat::routes())
+        .merge(crate::dm::routes())
         .layer(DefaultBodyLimit::max(8192))
         .layer(middleware::from_fn_with_state(auth.clone(), protect))
         .with_state(auth))
@@ -108,6 +109,7 @@ pub(crate) enum AuthError {
     Forbidden,
     Duplicate,
     MessageConflict,
+    MissingParents,
 }
 
 impl IntoResponse for AuthError {
@@ -118,6 +120,11 @@ impl IntoResponse for AuthError {
                 StatusCode::CONFLICT,
                 "message_conflict",
                 "Cet identifiant d'envoi est déjà associé à un autre message.",
+            ),
+            MissingParents => (
+                StatusCode::CONFLICT,
+                "missing_dm_parents",
+                "Un ou plusieurs événements parents manquent à cette conversation.",
             ),
             NotFound => (StatusCode::NOT_FOUND, "not_found", "Ressource introuvable."),
             Forbidden => (StatusCode::FORBIDDEN, "forbidden", "Droits insuffisants."),
@@ -178,7 +185,7 @@ impl From<sqlx::Error> for AuthError {
 
 #[derive(Serialize, sqlx::FromRow)]
 pub(crate) struct User {
-    global_identity_id: String,
+    pub(crate) global_identity_id: String,
     pub(crate) id: String,
     handle: String,
     display_name: String,
@@ -223,6 +230,19 @@ pub(crate) async fn current_user(pool: &PgPool, headers: &HeaderMap) -> Result<U
     let (hash, transport) = session_credentials(&headers)?;
     sqlx::query_as("SELECT u.id::text, u.global_identity_id, u.handle, u.display_name FROM sessions s JOIN users u ON u.id=s.user_id JOIN devices d ON (d.identity_id,d.device_id)=(s.identity_id,s.device_id) WHERE d.revoked_at IS NULL AND s.token_hash=$1 AND s.expires_at > now() AND s.transport=$2")
         .bind(hash).bind(transport).fetch_optional(pool).await?.ok_or(AuthError::Session)
+}
+
+pub(crate) async fn current_device(
+    pool: &PgPool,
+    headers: &HeaderMap,
+) -> Result<String, AuthError> {
+    let (hash, transport) = session_credentials(headers)?;
+    sqlx::query_scalar("SELECT s.device_id FROM sessions s JOIN devices d ON (d.identity_id,d.device_id)=(s.identity_id,s.device_id) WHERE d.revoked_at IS NULL AND s.token_hash=$1 AND s.expires_at > now() AND s.transport=$2")
+        .bind(hash)
+        .bind(transport)
+        .fetch_optional(pool)
+        .await?
+        .ok_or(AuthError::Session)
 }
 
 async fn logout(

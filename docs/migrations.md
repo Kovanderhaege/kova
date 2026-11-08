@@ -23,6 +23,6 @@ Migrations futures à coordonner avec leurs écritures et lectures :
 
 ## Jalons MP
 
-Créer séparément dm_conversations, dm_participants, dm_events (event_id unique, enveloppe/signature/dépendances), dm_replica_policies, dm_replica_approvals et les tables de jobs/curseurs. Attendre la décision E2EE, les formats canoniques et la politique de concurrence avant de fixer colonnes et index. Ne pas stocker de clé privée ni utiliser users.id comme identité de participant global.
+La migration `0007_direct_messages.sql` crée `dm_key_packages`, `dm_conversations` et `dm_events`. Les deux participants sont des identités/appareils globaux dans le manifeste immuable. Le serveur stocke uniquement packages publics, Welcome et événements chiffrés signés ; les curseurs sont locaux. Les migrations 0001–0006 restent inchangées. Les politiques de réplicas, approbations bilatérales et jobs de synchronisation restent futurs ; aucune autorisation de fédération n'est créée par cette migration.
 
 Chaque migration doit passer sur base vide et sur base historique peuplée, avec préservation des messages/adhésions, validation des contraintes et restauration d'une sauvegarde. Les tests de persistance existants couvrent la transition 0001→0005 ; le test séparé `backup_restore.py` vérifie désormais un pg_dump complet restauré dans une autre base.

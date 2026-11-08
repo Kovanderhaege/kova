@@ -54,7 +54,7 @@ La demande publique signe `kova-link-request-v1\n{device_public_key}\n{nonce}\n{
 
 ## Contrats futurs
 
-Les événements MP et fédération de MVP_target sont des propositions, pas des endpoints disponibles. Le chat public WS est décrit ci-dessous. Les MP auront leur version et contexte de signature propres ; ne pas étendre le format d'authentification ni réutiliser les seq locaux. Choix de canonisation, tailles maximales, dépendances et bibliothèque E2EE à figer ensemble avant leur implémentation.
+Les événements MP du jalon 5 sont décrits ci-dessous ; la fédération reste une proposition. Le chat public WS est décrit ci-dessous. Les MP ont leurs domaines de signature propres et ne réutilisent pas les séquences des salons.
 
 ## Communautés locales — jalon 3
 
@@ -99,3 +99,29 @@ Le serveur relit le journal committé toutes les 250 ms, par lots de 100. Il rev
 Le cache client conserve les messages et son curseur contigu atomiquement, séparés par origine, identité et salon. Il rejette les trous et les contradictions, accepte les doublons identiques. Après coupure, le desktop repart du curseur durable. Un envoi incertain conserve texte et UUID pour un réessai explicite, y compris après redémarrage. Aucun envoi automatique hors ligne. Le cache public n'est pas chiffré et une exclusion n'efface pas les copies déjà reçues.
 
 La migration 0006 recale les compteurs sur les messages historiques ; elle refuse une histoire à trous au lieu de renuméroter les messages. Sauvegarder avant mise à niveau et réparer explicitement un import incohérent avant de réessayer.
+
+## MP E2EE 1:1 — jalon 5
+
+Routes sous `/api/v1`, session et Origin habituels. Aucun accès implicite par rôle communautaire ou administrateur. La lecture d'une conversation exige l'identité **et l'appareil** d'un des deux participants du manifeste.
+
+| Route | Contrat |
+|---|---|
+| `POST /dm/key-packages` | Publier/remplacer son `DeviceBundle` signé ; aucune clé privée |
+| `GET /dm/key-packages/{identity}/{device}` | Récupérer le bundle public d'un appareil connu ; session requise |
+| `POST /dm/conversations` | Déposer un `ConversationManifest` signé par le créateur ; consommer atomiquement le package du destinataire ; réessai identique idempotent |
+| `GET /dm/conversations` | Manifestes accessibles à l'appareil courant |
+| `GET /dm/conversations/{id}` | Manifeste et Welcome chiffré ; l'acceptation cryptographique reste locale |
+| `POST /dm/conversations/{id}/events` | Événement signé opaque ; réponse `{cursor,event}` après commit durable |
+| `GET /dm/conversations/{id}/events?after=0&limit=100` | `{items:[{cursor,event}],next_cursor}` ; curseur local exclusif, limite 1–100 |
+
+Les définitions normatives sont `kova-protocol/src/dm.rs`. Toutes les données binaires sont hexadécimales minuscules ; les identifiants conversation/événement sont des UUID canoniques. Les signatures Ed25519 couvrent un tableau JSON compact UTF-8 sérialisé dans cet ordre :
+
+- Bundle : `["kova-dm-device-v1",global_identity_id,device_id,root_public_key,device_public_key,issued_at,expires_at,authorization_signature,key_package]`.
+- Manifeste : `["kova-dm-conversation-v1",conversation_id,origin,creator,recipient,welcome]` ; `creator`/`recipient` sont les objets complets du bundle, ordre des champs ci-dessus puis `signature`.
+- Événement : `["kova-dm-event-v1",conversation_id,event_id,author_identity,author_device,parents,ciphertext]`.
+
+Aucun espace superflu ni LF final. Les chaînes suivent l'échappement JSON de serde_json, les timestamps sont des entiers Unix. L'autorisation racine reste le format `kova-device-v2` existant. Le client vérifie signatures, échéances, empreintes obtenues par canal indépendant et roster MLS exact (identité, appareil, clé de signature MLS) avant acceptation. Les événements historiques vérifient les signatures sans considérer leur ancienne autorisation comme fraîche aujourd'hui.
+
+Les parents sont triés, uniques, au plus 16 ; chaque dépendance doit déjà exister dans cette conversation. Un parent absent ou un identifiant rejoué avec d'autres octets produit un conflit. Le plaintext MLS contient aussi conversation, event_id, parents et corps : le client refuse toute divergence avec l'enveloppe signée. Le corps possède les mêmes limites textuelles que le chat public. Le serveur limite le ciphertext à 16 Kio, les KeyPackages et Welcome à 32 Kio chacun et le corps HTTP MP à 200 000 octets. Les erreurs existantes restent inchangées hors routes MP.
+
+La création et les nouveaux messages vérifient les appareils actifs ; révoquer un participant bloque les nouveaux dépôts. Un participant encore actif peut lire l'historique après révocation de son correspondant. L'instance peut cacher une révocation ; le client borne donc les nouveaux envois à l'échéance des attestations du manifeste, au maximum 24 heures. Le renouvellement en place, les notifications WS MP et les réplicas sont hors jalon 5. L'ordre d'affichage local est topologique, avec départage par UUID, pas par horloge serveur.

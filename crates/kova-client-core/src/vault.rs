@@ -8,6 +8,25 @@ pub struct Vault {
     profile: String,
 }
 impl Vault {
+    /// Local encrypted message storage uses its own age key, never an identity key.
+    pub fn dm_secret(&self) -> Result<Zeroizing<String>> {
+        use age::secrecy::ExposeSecret;
+        let _lock = self.lock()?;
+        let entry = self.entry("dm-storage-v1")?;
+        match entry.get_password() {
+            Ok(secret) => Ok(Zeroizing::new(secret)),
+            Err(keyring::Error::NoEntry) => {
+                // Losing a key must not silently replace an existing encrypted history.
+                if self.directory()?.join("dm.sqlite").exists() {
+                    return Err("Clé MP absente du coffre : restauration nécessaire.".into());
+                }
+                let secret = age::x25519::Identity::generate().to_string();
+                entry.set_password(secret.expose_secret())?;
+                Ok(Zeroizing::new(secret.expose_secret().to_owned()))
+            }
+            Err(error) => Err(error.into()),
+        }
+    }
     pub fn new(profile: &str) -> Result<Self> {
         if profile.is_empty()
             || profile.len() > 32

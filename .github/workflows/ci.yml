@@ -20,6 +20,9 @@ jobs:
       - run: python crates/kova-server/tests/chat.py
         env:
           KOVA_TEST_RUST_CLIENT: "1"
+      - run: python crates/kova-server/tests/dm.py
+        env:
+          KOVA_TEST_RUST_CLIENT: "1"
       - run: python crates/kova-server/tests/revocations.py
       - run: python crates/kova-server/tests/backup_restore.py
 

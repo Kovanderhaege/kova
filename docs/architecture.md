@@ -2,18 +2,18 @@
 
 ```mermaid
 flowchart TB
-    UI[Desktop GPUI — à créer] --> Core[Cœur Rust : coffre, SQLite, outbox — à créer]
+    UI[Prototype Windows GPUI] --> Core[Cœur Rust : coffre, SQLite et envois en attente]
     Core --> Protocol[kova-protocol : formats publics]
     Core --> Identity[kova-identity : vérification publique]
-    Core --> Crypto[E2EE client — bibliothèque à sélectionner]
+    Core --> Crypto[kova-crypto : OpenMLS, secrets côté client]
     Core --> A[Instance A : serveur modulaire]
-    Core --> B[Instance B : serveur modulaire]
+    Core -. futur .-> B[Instance B : serveur modulaire]
     A --> Protocol
     A --> Identity
     A --> Community[Communautés et salons locaux A]
-    A --> DM[Enveloppes MP autorisées — à créer]
+    A --> DM[Enveloppes MP signées et chiffrées]
     B --> Replica[Réplica MP autorisé — à créer]
-    DM <--> Replica
+    DM -. futur .-> Replica
 ```
 
 Identité : indépendante de l'hébergeur, racine privée côté client. Communauté : profils, adhésions et autorisations locales. MP : participants globaux, consentement et événements chiffrés indépendants des communautés. Média : domaine réservé, hors MVP.
