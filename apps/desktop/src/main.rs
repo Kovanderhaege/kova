@@ -1,4 +1,6 @@
 #[cfg(windows)]
+mod chat_service;
+#[cfg(windows)]
 mod community_service;
 #[cfg(windows)]
 mod identity_service;

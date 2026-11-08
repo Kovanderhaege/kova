@@ -108,3 +108,36 @@ mod tests {
         assert!(!authorization_is_fresh(i64::MIN, i64::MAX, 100));
     }
 }
+
+/// Immutable public-channel message. Sequence numbers are local to one channel.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ChatMessage {
+    pub channel_id: String,
+    pub seq: i64,
+    pub author_id: String,
+    pub client_id: String,
+    pub body: String,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ChatPage {
+    pub items: Vec<ChatMessage>,
+    pub next_seq: i64,
+    pub last_seq: i64,
+}
+
+pub fn valid_message_body(body: &str) -> bool {
+    (1..=4000).contains(&body.chars().count()) && !body.trim().is_empty() && !body.contains('\0')
+}
+
+pub fn valid_uuid(id: &str) -> bool {
+    id.len() == 36
+        && id.bytes().enumerate().all(|(i, b)| {
+            if matches!(i, 8 | 13 | 18 | 23) {
+                b == b'-'
+            } else {
+                b.is_ascii_hexdigit() && !b.is_ascii_uppercase()
+            }
+        })
+}

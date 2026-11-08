@@ -81,3 +81,16 @@ Preuves de validation : `communities.py` sur PostgreSQL 17/Docker (échec inject
 La compilation a rencontré un disque C: plein ; le cache du projet a été déplacé vers `D:\CodexBuilds\kova-milestone3-cache`, puis le build a réussi. Le binaire est également disponible dans `target/debug/kova-desktop.exe`. L'avertissement préexistant de compatibilité future `proc-macro-error2 2.0.1` demeure. Les suites révocation/restauration passent après récupération du moteur Docker ; la restauration vérifie aussi les exclusions, les salons et l’absence d’adhésion du profil exclu.
 
 Limites : interface de prototype avec identifiants copiés depuis les résultats, pas de transfert de propriété ou de levée d'exclusion ; pas de cache communautaire hors ligne ni d'abonnement WS (jalon 4). La CI inclut désormais la suite communautaire ; aucune exécution distante n'est revendiquée.
+
+
+## Implémentation du jalon 4 — 8 novembre 2026
+
+Le chat public dispose de routes HTTP d'envoi idempotent et d'historique paginé, ainsi que d'un flux WebSocket reprenant après une séquence locale. Le cœur Rust conserve un cache SQLite contigu et les envois incertains. Le panneau Windows Chat propose réception en direct, synchronisation, envoi, réessai et lecture hors ligne. Voir [le guide](windows-chat.md) et [le contrat](protocol.md#chat-public--jalon-4).
+
+La migration 0006 préserve les messages historiques, recale les compteurs et refuse les imports à trous. Les limites sont explicites : messages publics en clair sur l'instance et dans le cache, pas d'édition/suppression ni de pièces jointes, un salon suivi à la fois, 100 derniers messages affichés. Le polling PostgreSQL par connexion et l'absence de quotas de connexions ne constituent pas une preuve de montée en charge. Les résultats de validation et la clôture restent à consigner après intégration finale.
+
+### Validation du jalon 4 — 8 novembre 2026
+
+Jalon 4 terminé pour le chat public du prototype Windows. `cargo test --workspace --locked`, `cargo build -p kova-desktop --locked`, le formatage et `git diff --check` passent. Les suites PostgreSQL `chat.py` (avec `KOVA_TEST_RUST_CLIENT=1`), `persistence.py`, `communities.py` et `sessions.py` passent localement. La suite chat vérifie concurrence, rollback sans trou, idempotence, pagination, deux abonnés, reprise, exclusion, expiration, logout, révocation, redémarrage et lots JSON de plus de 2,4 Mo. Le client Rust vérifie aussi un accusé perdu, un redémarrage du cache et une reprise WS sans doublon.
+
+Contrôle graphique Windows : ouverture, navigation vers Chat, présence des champs et des six commandes, fermeture normale. Il s'agit d'un smoke test visuel ; le parcours réseau est vérifié par les tests automatisés, pas par une recette graphique connectée exhaustive. L'avertissement préexistant `proc-macro-error2 2.0.1` demeure. La CI distante et les suites révocation/restauration complètes n'ont pas été relancées pour ce jalon. Les limites du prototype figurent dans `windows-chat.md`.

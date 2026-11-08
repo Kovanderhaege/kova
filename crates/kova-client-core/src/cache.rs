@@ -1,3 +1,5 @@
+#[path = "cache_chat.rs"]
+mod chat;
 use super::*;
 /// Only public instance addresses and drafts; secrets never enter SQLite.
 pub struct Cache(rusqlite::Connection);
@@ -5,6 +7,8 @@ impl Cache {
     pub fn open(path: &Path) -> Result<Self> {
         let db = rusqlite::Connection::open(path)?;
         db.execute_batch("PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS instances (origin TEXT PRIMARY KEY); CREATE TABLE IF NOT EXISTS revocations (event_id TEXT PRIMARY KEY, proof TEXT NOT NULL); CREATE TABLE IF NOT EXISTS drafts (id TEXT PRIMARY KEY, body TEXT NOT NULL);")?;
+        db.busy_timeout(std::time::Duration::from_secs(5))?;
+        db.execute_batch("CREATE TABLE IF NOT EXISTS chat_messages (origin TEXT NOT NULL, identity TEXT NOT NULL, channel TEXT NOT NULL, seq INTEGER NOT NULL, message TEXT NOT NULL, PRIMARY KEY(origin,identity,channel,seq)); CREATE TABLE IF NOT EXISTS chat_pending (origin TEXT NOT NULL, identity TEXT NOT NULL, channel TEXT NOT NULL, message TEXT NOT NULL, PRIMARY KEY(origin,identity,channel));")?;
         Ok(Self(db))
     }
     pub fn remember_instance(&self, origin: &str) -> Result<()> {

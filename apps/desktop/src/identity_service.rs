@@ -5,6 +5,11 @@ use std::path::Path;
 use zeroize::Zeroizing;
 
 pub enum Command {
+    Chat {
+        origin: String,
+        channel: String,
+        command: crate::chat_service::Command,
+    },
     Community {
         origin: String,
         command: crate::community_service::Command,
@@ -84,6 +89,11 @@ fn propagate(cache: &Cache) -> Result<String> {
 pub fn execute(profile: &str, command: Command) -> Result<String> {
     let vault = Vault::new(profile)?;
     match command {
+        Command::Chat {
+            origin,
+            channel,
+            command,
+        } => crate::chat_service::execute(&vault, &origin, &channel, command),
         Command::Community { origin, command } => {
             crate::community_service::execute(&vault, &origin, command)
         }

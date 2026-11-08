@@ -10,11 +10,13 @@ Le MVP vise un client desktop Rust/GPUI, une identité globale, des communautés
 
 Le socle Rust/Axum démarre avec PostgreSQL et applique ses migrations. Le jalon 2 est terminé pour Windows : identité Ed25519 globale, profils locaux, authentification par challenge signé, coffre natif, récupération chiffrée, association et révocation d'appareils. Les preuves et limites figurent dans le [bilan du jalon](docs/migration-plan.md#finalisation-du-jalon-2--7-novembre-2026).
 
-Le workspace comprend le serveur, le protocole, la vérification d’identité, `kova-client-core` et un prototype GPUI Windows dans `apps/desktop`. Les bibliothèques clientes ne dépendent pas du serveur. Les sessions desktop Bearer durent au plus une heure ; le client Windows utilise le coffre natif. Le jalon 3 ajoute les communautés locales, salons, invitations à usage unique, rôles et exclusions persistantes, accessibles par HTTP et depuis le prototype Windows. Le chat WS et les MP restent à implémenter.
+Le workspace comprend le serveur, le protocole, la vérification d’identité, `kova-client-core` et un prototype GPUI Windows dans `apps/desktop`. Les bibliothèques clientes ne dépendent pas du serveur. Les sessions desktop Bearer durent au plus une heure ; le client Windows utilise le coffre natif. Le jalon 3 ajoute les communautés locales, salons, invitations à usage unique, rôles et exclusions persistantes, accessibles par HTTP et depuis le prototype Windows. Le jalon 4 ajoute le chat public HTTP/WebSocket, le cache SQLite et la reprise après coupure dans le prototype Windows. Les MP restent à implémenter.
 
 Voir le [bilan et plan de migration](docs/migration-plan.md), les [domaines](docs/architecture.md), le [modèle de menace](docs/threat-model.md), les [contrats](docs/protocol.md), la [réplication proposée](docs/replication.md) et les [migrations proposées](docs/migrations.md).
 
 Voir aussi le [prototype Windows et ses prérequis](docs/windows-spike.md) et la [politique de licence et de modèle économique](docs/decisions/licensing.md). Le parcours d’identité Windows est décrit dans [le guide desktop](docs/windows-identity.md). Le parcours communautaire est décrit dans [le guide Windows](docs/windows-communities.md).
+
+Le parcours de chat est décrit dans [le guide Windows](docs/windows-chat.md). Les messages communautaires sont lisibles par leur instance ; ils ne sont pas chiffrés de bout en bout.
 
 ## Licence et modèle économique
 
@@ -24,7 +26,7 @@ L'orientation retenue est `AGPL-3.0-only` pour le serveur et `Apache-2.0` pour l
 
 ## Vérification
 
-`cargo fmt --all -- --check` et `cargo test --workspace --locked` vérifient le socle Rust, y compris le coffre natif sur Windows. Les suites Python `persistence.py`, `sessions.py`, `communities.py`, `revocations.py` et `backup_restore.py` dans `crates/kova-server/tests` nécessitent Docker actif et `cryptography>=41` ; elles construisent des instances jetables. Ces vérifications ont réussi localement le 7 novembre 2026. La CI est configurée, mais son passage distant n'est pas revendiqué.
+`cargo fmt --all -- --check` et `cargo test --workspace --locked` vérifient le socle Rust, y compris le coffre natif sur Windows. Les suites Python `persistence.py`, `sessions.py`, `communities.py`, `chat.py`, `revocations.py` et `backup_restore.py` dans `crates/kova-server/tests` nécessitent Docker actif et `cryptography>=41` (`chat.py` demande aussi `websockets==17.3`) ; elles construisent des instances jetables. Ces vérifications ont réussi localement le 7 novembre 2026. La CI est configurée, mais son passage distant n'est pas revendiqué.
 
 ## Démarrage local
 

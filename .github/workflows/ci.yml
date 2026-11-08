@@ -13,10 +13,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install 'cryptography>=41'
+      - run: python -m pip install 'cryptography>=41' 'websockets==17.3'
       - run: python crates/kova-server/tests/persistence.py
       - run: python crates/kova-server/tests/sessions.py
       - run: python crates/kova-server/tests/communities.py
+      - run: python crates/kova-server/tests/chat.py
+        env:
+          KOVA_TEST_RUST_CLIENT: "1"
       - run: python crates/kova-server/tests/revocations.py
       - run: python crates/kova-server/tests/backup_restore.py
 

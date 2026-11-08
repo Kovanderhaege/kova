@@ -1,4 +1,5 @@
 mod auth;
+mod chat;
 mod communities;
 
 use std::{env, error::Error, time::Duration};

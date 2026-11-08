@@ -28,7 +28,7 @@ use url::{Host, Url};
 
 pub(crate) struct Auth {
     pub(crate) pool: PgPool,
-    origin: String,
+    pub(crate) origin: String,
     secure: bool,
 
     attempts: Mutex<attempts::Attempts>,
@@ -69,6 +69,7 @@ pub fn routes(pool: PgPool, origin: &str) -> Result<Router, Box<dyn Error>> {
         )
         .route("/identity/devices/revoke", post(devices::revoke))
         .merge(crate::communities::routes())
+        .merge(crate::chat::routes())
         .layer(DefaultBodyLimit::max(8192))
         .layer(middleware::from_fn_with_state(auth.clone(), protect))
         .with_state(auth))
@@ -106,12 +107,18 @@ pub(crate) enum AuthError {
     NotFound,
     Forbidden,
     Duplicate,
+    MessageConflict,
 }
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         use AuthError::*;
         let (status, code, message) = match self {
+            MessageConflict => (
+                StatusCode::CONFLICT,
+                "message_conflict",
+                "Cet identifiant d'envoi est déjà associé à un autre message.",
+            ),
             NotFound => (StatusCode::NOT_FOUND, "not_found", "Ressource introuvable."),
             Forbidden => (StatusCode::FORBIDDEN, "forbidden", "Droits insuffisants."),
             Duplicate => (

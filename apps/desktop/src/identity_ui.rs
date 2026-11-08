@@ -7,6 +7,7 @@ use zeroize::Zeroizing;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Page {
+    Chat,
     Communities,
     Moderation,
     Identity,
@@ -20,6 +21,11 @@ enum Page {
 impl Page {
     fn fields(self) -> &'static [(&'static str, bool)] {
         match self {
+            Self::Chat => &[
+                ("Origine exacte de l’instance connectée", false),
+                ("Identifiant du salon (copier depuis Salons)", false),
+                ("Message public (1–4000 caractères)", false),
+            ],
             Self::Communities => &[
                 ("Origine exacte de l'instance connectée", false),
                 ("Identifiant de communauté (copier depuis la liste)", false),
@@ -68,6 +74,14 @@ impl Page {
     }
     fn actions(self) -> &'static [&'static str] {
         match self {
+            Self::Chat => &[
+                "Recevoir en direct",
+                "Arrêter le direct",
+                "Synchroniser",
+                "Envoyer",
+                "Réessayer l’envoi",
+                "Hors ligne",
+            ],
             Self::Communities => &[
                 "Mes communautés",
                 "Créer la communauté",
@@ -96,8 +110,11 @@ impl Page {
     }
     fn guidance(self) -> &'static str {
         match self {
+            Self::Chat => {
+                "Les messages sont visibles par les membres du salon. Le direct reprend après une coupure. En cas d’envoi incertain, utilisez Réessayer ; le texte en attente est conservé localement."
+            }
             Self::Communities => {
-                "Connectez-vous d'abord à l'instance. Créer une communauté crée aussi son salon général. Pour rejoindre avec une invitation, utilisez Connexion. Les salons sont consultables ; le chat arrive au jalon suivant."
+                "Connectez-vous d'abord à l'instance. Créer une communauté crée aussi son salon général. Pour rejoindre avec une invitation, utilisez Connexion. Copiez un identifiant de salon dans le panneau Chat."
             }
             Self::Moderation => {
                 "Seul le propriétaire change les rôles. Un modérateur peut exclure un membre simple. L'exclusion est définitive pour cette communauté, même avec une nouvelle invitation. Vérifiez l'identifiant avant de cliquer."
@@ -131,13 +148,19 @@ struct IdentityWindow {
     page: Page,
     fields: Vec<Entity<TextInput>>,
     status: String,
+    operation_status: String,
+    subscription_scope: Option<(String, String, String)>,
     busy: bool,
+    subscription: Option<crate::chat_service::Subscription>,
+    subscription_generation: u64,
 }
 impl IdentityWindow {
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
         if self.busy {
             return;
         }
+        self.subscription = None;
+        self.subscription_generation += 1;
         self.page = page;
         self.fields = page
             .fields()
@@ -145,14 +168,85 @@ impl IdentityWindow {
             .map(|(label, secret)| cx.new(|cx| TextInput::new(cx, label, "", *secret)))
             .collect();
         self.status.clear();
+        self.operation_status.clear();
         cx.notify();
     }
     fn execute(&mut self, action: usize, cx: &mut Context<Self>) {
         if self.busy {
             return;
         }
+        if self.page == Page::Chat && action <= 1 {
+            self.subscription = None;
+            self.subscription_generation += 1;
+            if action == 1 {
+                self.status = "Réception arrêtée.".into();
+                cx.notify();
+                return;
+            }
+            let subscription = crate::chat_service::Subscription::start(
+                self.profile.read(cx).content.to_string(),
+                self.fields[0].read(cx).content.to_string(),
+                self.fields[1].read(cx).content.to_string(),
+            );
+            let latest = subscription.latest.clone();
+            let generation = self.subscription_generation;
+            self.subscription_scope = Some((
+                self.profile.read(cx).content.to_string(),
+                self.fields[0].read(cx).content.to_string(),
+                self.fields[1].read(cx).content.to_string(),
+            ));
+            self.subscription = Some(subscription);
+            self.status = "Connexion au salon…".into();
+            cx.spawn(async move |entity, cx| {
+                loop {
+                    Timer::after(std::time::Duration::from_millis(100)).await;
+                    let active = entity
+                        .update(cx, |this, cx| {
+                            if this.subscription_generation != generation {
+                                return false;
+                            }
+                            if let Ok(mut slot) = latest.lock() {
+                                if let Some(status) = slot.take() {
+                                    this.status = status;
+                                    cx.notify();
+                                }
+                            }
+                            true
+                        })
+                        .unwrap_or(false);
+                    if !active {
+                        break;
+                    }
+                }
+            })
+            .detach();
+            cx.notify();
+            return;
+        }
+        let keep_stream = self.page == Page::Chat
+            && matches!(action, 3 | 4)
+            && self.subscription_scope.as_ref()
+                == Some(&(
+                    self.profile.read(cx).content.to_string(),
+                    self.fields[0].read(cx).content.to_string(),
+                    self.fields[1].read(cx).content.to_string(),
+                ));
+        if !keep_stream {
+            self.subscription = None;
+            self.subscription_generation += 1;
+        }
         let value = |index: usize| self.fields[index].read(cx).content.to_string();
         let command = match (self.page, action) {
+            (Page::Chat, action) => Command::Chat {
+                origin: value(0),
+                channel: value(1),
+                command: match action {
+                    2 => crate::chat_service::Command::Sync,
+                    3 => crate::chat_service::Command::Send(value(2)),
+                    4 => crate::chat_service::Command::Retry,
+                    _ => crate::chat_service::Command::Offline,
+                },
+            },
             (Page::Communities, action) => {
                 use crate::community_service::Command as Community;
                 Command::Community {
@@ -241,17 +335,31 @@ impl IdentityWindow {
             }
         }
         self.busy = true;
-        self.status = "Opération en cours…".into();
+        self.operation_status = "Opération en cours…".into();
         cx.notify();
         let work = cx.background_executor().spawn(async move {
-            identity_service::execute(&profile, command)
-                .unwrap_or_else(|error| format!("Échec : {error}"))
+            identity_service::execute(&profile, command).map_err(|error| format!("Échec : {error}"))
         });
         cx.spawn(async move |entity, cx| {
             let status = work.await;
             let _ = entity.update(cx, |this, cx| {
                 this.busy = false;
-                this.status = status;
+                let success = status.is_ok();
+                let status = status.unwrap_or_else(|error| error);
+                if this.page == Page::Chat && matches!(action, 3 | 4) && success {
+                    this.fields[2].update(cx, |input, cx| {
+                        input.reset();
+                        cx.notify();
+                    });
+                }
+                this.operation_status = if success {
+                    "Opération terminée.".into()
+                } else {
+                    status.clone()
+                };
+                if this.subscription.is_none() {
+                    this.status = status;
+                }
                 cx.notify();
             });
         })
@@ -264,6 +372,7 @@ impl Render for IdentityWindow {
             (Page::Identity, "Identité"),
             (Page::Connection, "Connexion"),
             (Page::Communities, "Communautés"),
+            (Page::Chat, "Chat"),
             (Page::Moderation, "Modération"),
             (Page::Backup, "Sauvegarde"),
             (Page::Request, "Demande"),
@@ -285,6 +394,7 @@ impl Render for IdentityWindow {
                 div().id(("action",index)).p_2().cursor_pointer().bg(rgb(if self.busy {0x475569} else {0x1d4ed8})).child(*label)
                     .on_click(cx.listener(move |this,_,_,cx| this.execute(index,cx)))
             })))
+            .child(self.operation_status.clone())
             .child(div().id("result").flex_1().overflow_y_scroll().p_2().bg(rgb(0x1f2937)).child(self.status.clone()))
             .child(div().id("copy-result").cursor_pointer().child("Copier le résultat (une invitation est confidentielle)")
                 .on_click(cx.listener(|this,_,_,cx| cx.write_to_clipboard(ClipboardItem::new_string(this.status.clone())))))
@@ -311,6 +421,10 @@ pub fn run() {
                     fields: Vec::new(),
                     status: "Créez une identité ou affichez celle du profil sélectionné.".into(),
                     busy: false,
+                    operation_status: String::new(),
+                    subscription_scope: None,
+                    subscription: None,
+                    subscription_generation: 0,
                 })
             },
         )
