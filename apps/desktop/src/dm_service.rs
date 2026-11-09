@@ -26,6 +26,24 @@ pub enum Command {
     Offline {
         id: String,
     },
+    ProposeReplica {
+        id: String,
+        peer_origin: String,
+    },
+    RemoveReplica {
+        id: String,
+        peer_origin: String,
+    },
+    ReviewReplica {
+        id: String,
+    },
+    ApproveReplica {
+        id: String,
+    },
+    SyncReplica {
+        id: String,
+        peer_origin: String,
+    },
 }
 
 fn open_store(vault: &Vault, identity: &Identity) -> Result<DmStore> {
@@ -124,5 +142,59 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
             store.render(Some(&id))
         }
         Command::Offline { id } => store.render(Some(&id)),
+        Command::ProposeReplica { id, peer_origin } => {
+            let policy =
+                store.propose_replica(&instance, &session, &identity, &id, &peer_origin)?;
+            Ok(render_policy(
+                &policy,
+                "Proposition préparée localement. Vérifiez-la puis approuvez pour la transmettre.",
+            ))
+        }
+        Command::RemoveReplica { id, peer_origin } => {
+            let policy =
+                store.propose_replica_removal(&instance, &session, &identity, &id, &peer_origin)?;
+            Ok(render_policy(
+                &policy,
+                "Retrait proposé. Les copies déjà conservées par l'instance ne peuvent pas être effacées.",
+            ))
+        }
+        Command::ReviewReplica { id } => {
+            let policy = store.replica_proposal(&instance, &session, &id)?;
+            Ok(render_policy(
+                &policy,
+                "Vérifiez les origines et empreintes ci-dessous. Utilisez Approuver dans une action distincte.",
+            ))
+        }
+        Command::ApproveReplica { id } => {
+            let policy = store.approve_replica_proposal(&instance, &session, &identity, &id)?;
+            Ok(render_policy(
+                &policy,
+                "Approbation enregistrée. La politique devient active après l'approbation de l'autre participant.",
+            ))
+        }
+        Command::SyncReplica { id, peer_origin } => {
+            let (received, sent) = store.sync_replicas(&instance, &session, &id, &peer_origin)?;
+            Ok(format!(
+                "Réplication terminée avec {peer_origin} : {received} événement(s) reçu(s), {sent} envoyé(s).\n{}",
+                store.render(Some(&id))?
+            ))
+        }
     }
+}
+
+fn render_policy(policy: &kova_protocol::replication::ReplicaPolicy, heading: &str) -> String {
+    let replicas = policy
+        .replicas
+        .iter()
+        .map(|replica| format!("{} · clé {}", replica.origin, replica.public_key))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "{heading}\nConversation : {}\nVersion : {}\nEmpreinte : {}\nApprobations : {} / 2\nRéplicas :\n{}",
+        policy.conversation_id,
+        policy.version,
+        kova_identity::replication::policy_hash(policy),
+        policy.approvals.len(),
+        replicas
+    )
 }

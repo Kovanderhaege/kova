@@ -31,7 +31,7 @@ impl DmStore {
                 r.get(0)
             })
             .optional()?;
-        let state = if let Some(encrypted) = encrypted {
+        let mut state = if let Some(encrypted) = encrypted {
             let plaintext = Zeroizing::new(age::decrypt(&key, &encrypted)?);
             let state: State = serde_json::from_slice(&plaintext)?;
             if state.version != 1
@@ -51,8 +51,16 @@ impl DmStore {
                     .export_state()?,
                 bundle: None,
                 conversations: BTreeMap::new(),
+                replica_proposals: BTreeMap::new(),
             }
         };
+        for conversation in state.conversations.values_mut() {
+            if conversation.source_cursors.is_empty() && conversation.cursor > 0 {
+                conversation
+                    .source_cursors
+                    .insert(conversation.manifest.origin.clone(), conversation.cursor);
+            }
+        }
         let mut store = Self {
             database,
             key,

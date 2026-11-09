@@ -1,0 +1,12 @@
+# Opt-in overlay: use with compose.yaml after exchanging peer public keys.
+services:
+  api:
+    environment:
+      KOVA_FEDERATION_KEY_FILE: /run/secrets/kova_federation_key
+      KOVA_FEDERATION_PEERS: ${KOVA_FEDERATION_PEERS:?Définir les origines et clés publiques des pairs}
+    secrets:
+      - kova_federation_key
+
+secrets:
+  kova_federation_key:
+    file: ${KOVA_FEDERATION_HOST_KEY_FILE:?Définir le chemin du fichier PKCS8 privé}

@@ -45,3 +45,8 @@ mod tests {
         );
     }
 }
+
+pub mod replication;
+
+#[cfg(test)]
+mod replication_tests;

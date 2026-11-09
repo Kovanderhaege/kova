@@ -23,6 +23,8 @@ Migrations futures à coordonner avec leurs écritures et lectures :
 
 ## Jalons MP
 
-La migration `0007_direct_messages.sql` crée `dm_key_packages`, `dm_conversations` et `dm_events`. Les deux participants sont des identités/appareils globaux dans le manifeste immuable. Le serveur stocke uniquement packages publics, Welcome et événements chiffrés signés ; les curseurs sont locaux. Les migrations 0001–0006 restent inchangées. Les politiques de réplicas, approbations bilatérales et jobs de synchronisation restent futurs ; aucune autorisation de fédération n'est créée par cette migration.
+La migration `0007_direct_messages.sql` crée `dm_key_packages`, `dm_conversations` et `dm_events`. Les deux participants sont des identités/appareils globaux dans le manifeste immuable. Le serveur stocke uniquement packages publics, Welcome et événements chiffrés signés ; les curseurs sont locaux. Les migrations 0001–0006 restent inchangées. Aucune autorisation de fédération n'est créée par cette migration.
+
+La migration `0008_replica_policies.sql` ajoute les propositions et politiques signées, l'unicité de la politique active, les curseurs persistants par pair, les nonces anti-rejeu et les conflits de politique. Elle ne modifie ni les messages existants ni les migrations 0001–0007. Les conversations historiques restent locales jusqu'à approbation explicite d'une politique par les deux participants. Sauvegarder la base avant mise à niveau.
 
 Chaque migration doit passer sur base vide et sur base historique peuplée, avec préservation des messages/adhésions, validation des contraintes et restauration d'une sauvegarde. Les tests de persistance existants couvrent la transition 0001→0005 ; le test séparé `backup_restore.py` vérifie désormais un pg_dump complet restauré dans une autre base.

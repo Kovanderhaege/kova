@@ -52,6 +52,7 @@ impl Page {
                 ),
                 ("Identifiant global de conversation", false),
                 ("Message privé", false),
+                ("Origine du réplica à proposer / synchroniser", false),
             ],
             Self::Identity => &[],
             Self::Connection => &[
@@ -118,6 +119,11 @@ impl Page {
                 "Envoyer",
                 "Réessayer l'envoi en attente",
                 "Hors ligne (cache local)",
+                "Préparer une proposition de réplica",
+                "Consulter la proposition",
+                "Approuver la proposition consultée",
+                "Synchroniser avec le réplica approuvé",
+                "Proposer le retrait d'un réplica",
             ],
             Self::Identity => &["Afficher l'identité", "Créer une identité"],
             Self::Connection => &[
@@ -144,7 +150,7 @@ impl Page {
                 "Seul le propriétaire change les rôles. Un modérateur peut exclure un membre simple. L'exclusion est définitive pour cette communauté, même avec une nouvelle invitation. Vérifiez l'identifiant avant de cliquer."
             }
             Self::DirectMessages => {
-                "Vérifiez l'identité et l'empreinte de l'appareil par un canal indépendant avant toute création ou acceptation. Le contenu est chiffré de bout en bout. Les conversations restent sur cette instance au jalon 5, avec un appareil par personne."
+                "Vérifiez l'identité et l'empreinte de l'appareil par un canal indépendant avant toute création ou acceptation. Pour la réplication, préparez une politique, consultez les origines et clés, puis approuvez séparément. Les deux participants doivent approuver avant toute synchronisation."
             }
             Self::Identity => {
                 "La clé racine est protégée par Windows. Créez une sauvegarde : sa perte sans sauvegarde rend l'identité irrécupérable."
@@ -339,7 +345,21 @@ impl IdentityWindow {
                         body: value(4),
                     },
                     6 => crate::dm_service::Command::Retry { id: value(3) },
-                    _ => crate::dm_service::Command::Offline { id: value(3) },
+                    7 => crate::dm_service::Command::Offline { id: value(3) },
+                    8 => crate::dm_service::Command::ProposeReplica {
+                        id: value(3),
+                        peer_origin: value(5),
+                    },
+                    9 => crate::dm_service::Command::ReviewReplica { id: value(3) },
+                    10 => crate::dm_service::Command::ApproveReplica { id: value(3) },
+                    11 => crate::dm_service::Command::SyncReplica {
+                        id: value(3),
+                        peer_origin: value(5),
+                    },
+                    _ => crate::dm_service::Command::RemoveReplica {
+                        id: value(3),
+                        peer_origin: value(5),
+                    },
                 },
             },
             (Page::Identity, 0) => Command::Inspect,

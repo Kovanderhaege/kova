@@ -45,6 +45,8 @@ fn rejected_ciphertext_does_not_consume_ratchet_or_cursor() {
             Conversation {
                 manifest: manifest.clone(),
                 cursor: 0,
+                source_cursors: BTreeMap::new(),
+                active_policy: None,
                 pending_creation: false,
                 events: BTreeMap::new(),
                 messages: BTreeMap::new(),
@@ -70,6 +72,32 @@ fn rejected_ciphertext_does_not_consume_ratchet_or_cursor() {
     assert!(b.merge(&id, page(missing)).is_err());
     b.merge(&id, page(event.clone())).unwrap();
     assert!(b.render(Some(&id)).unwrap().contains("secret-unit-message"));
+    let crypto_before_duplicate = b.state.crypto.clone();
+    b.merge_from(
+        &id,
+        "https://b.example",
+        DmEventPage {
+            items: vec![StoredDmEvent {
+                cursor: 1,
+                event: event.clone(),
+            }],
+            next_cursor: 1,
+        },
+    )
+    .unwrap();
+    assert_eq!(b.state.conversations[&id].cursor, 1);
+    assert_eq!(
+        b.state.conversations[&id].source_cursors["https://a.example"],
+        1
+    );
+    assert_eq!(
+        b.state.conversations[&id].source_cursors["https://b.example"],
+        1
+    );
+    assert_eq!(
+        b.state.crypto, crypto_before_duplicate,
+        "duplicate replica copy must not advance MLS ratchets"
+    );
     assert!(b.merge(&id, page(event.clone())).is_err()); // Cursor replay.
     a.merge(&id, page(event)).unwrap(); // Echo after an acknowledgement was lost.
     assert!(a.state.conversations[&id].pending.is_empty());
@@ -77,6 +105,14 @@ fn rejected_ciphertext_does_not_consume_ratchet_or_cursor() {
     drop(b);
     let b = DmStore::open(&b_path, key.expose_secret(), &bob).unwrap();
     assert_eq!(b.state.conversations[&id].cursor, 1);
+    assert_eq!(
+        b.state.conversations[&id].source_cursors["https://a.example"],
+        1
+    );
+    assert_eq!(
+        b.state.conversations[&id].source_cursors["https://b.example"],
+        1
+    );
     assert!(b.render(Some(&id)).unwrap().contains("secret-unit-message"));
     drop(b);
     for path in [a_path, b_path] {

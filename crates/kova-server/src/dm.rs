@@ -307,6 +307,9 @@ async fn list_events(
     let mut tx = auth.pool.begin().await?;
     let manifest =
         authorized_manifest(&mut tx, &conversation, &user.global_identity_id, &device).await?;
+    if !replica_is_active(&mut tx, &conversation, &auth.origin, &manifest).await? {
+        return Err(AuthError::Forbidden);
+    }
     if !kova_identity::dm::verify_conversation_historical(&manifest) {
         return Err(AuthError::Internal);
     }
@@ -387,6 +390,9 @@ async fn put_event(
     let mut tx = auth.pool.begin().await?;
     let manifest =
         authorized_manifest(&mut tx, &conversation, &user.global_identity_id, &device).await?;
+    if !replica_is_active(&mut tx, &conversation, &auth.origin, &manifest).await? {
+        return Err(AuthError::Forbidden);
+    }
     if !kova_identity::dm::verify_conversation_historical(&manifest)
         || !kova_identity::dm::verify_event(&event, &manifest)
     {
@@ -445,4 +451,26 @@ async fn put_event(
         .await?;
     tx.commit().await?;
     Ok(Json(StoredDmEvent { cursor, event }))
+}
+
+async fn replica_is_active(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    conversation: &str,
+    origin: &str,
+    manifest: &ConversationManifest,
+) -> Result<bool, AuthError> {
+    let policy: Option<DbJson<kova_protocol::replication::ReplicaPolicy>> = sqlx::query_scalar(
+        "SELECT policy FROM dm_replica_policies WHERE conversation_id=$1::uuid AND active",
+    )
+    .bind(conversation)
+    .fetch_optional(&mut **tx)
+    .await?;
+    match policy {
+        None => Ok(manifest.origin == origin),
+        Some(DbJson(policy)) => Ok(kova_identity::replication::verify_policy(&policy, manifest)
+            && policy
+                .replicas
+                .iter()
+                .any(|replica| replica.origin == origin)),
+    }
 }

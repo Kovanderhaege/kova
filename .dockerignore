@@ -3,6 +3,7 @@
 **/target
 **/__pycache__
 **/*.kova-vault
+**/*.pk8
 **/*.log
 **/.venv
 **/.env

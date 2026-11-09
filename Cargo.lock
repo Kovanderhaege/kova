@@ -3303,6 +3303,8 @@ version = "0.1.0"
 dependencies = [
  "gpui",
  "kova-client-core",
+ "kova-identity",
+ "kova-protocol",
  "serde_json",
  "unicode-segmentation",
  "zeroize",
@@ -3335,6 +3337,8 @@ dependencies = [
  "kova-identity",
  "kova-protocol",
  "rand 0.8.8",
+ "reqwest",
+ "ring",
  "serde",
  "serde_json",
  "sha2 0.10.9",

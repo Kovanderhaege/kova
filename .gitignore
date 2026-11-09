@@ -2,6 +2,7 @@
 **/target/
 __pycache__/
 *.kova-vault
+*.pk8
 
 /dist/
 /.venv/

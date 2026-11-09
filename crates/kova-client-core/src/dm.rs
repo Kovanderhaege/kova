@@ -17,6 +17,10 @@ pub use storage::DmStore;
 struct Conversation {
     manifest: ConversationManifest,
     cursor: i64,
+    #[serde(default)]
+    source_cursors: BTreeMap<String, i64>,
+    #[serde(default)]
+    active_policy: Option<kova_protocol::replication::ReplicaPolicy>,
     pending_creation: bool,
     events: BTreeMap<String, DmEvent>,
     messages: BTreeMap<String, String>,
@@ -31,6 +35,8 @@ struct State {
     crypto: Vec<u8>,
     bundle: Option<DeviceBundle>,
     conversations: BTreeMap<String, Conversation>,
+    #[serde(default)]
+    replica_proposals: BTreeMap<String, kova_protocol::replication::ReplicaPolicy>,
 }
 
 impl Drop for State {
@@ -143,11 +149,39 @@ impl DmStore {
             let mut text = String::from("Conversations locales — identifiants globaux\n");
             for (id, conversation) in &self.state.conversations {
                 text.push_str(&format!(
-                    "\n{id}\n{} ↔ {}\n{} · {} envoi(s) en attente\n",
+                    "\n{id}\n{} ↔ {}\n{} · {} envoi(s) en attente\n{}",
                     conversation.manifest.creator.global_identity_id,
                     conversation.manifest.recipient.global_identity_id,
                     conversation.manifest.origin,
-                    conversation.pending.len()
+                    conversation.pending.len(),
+                    if let Some(policy) = &conversation.active_policy {
+                        policy
+                            .replicas
+                            .iter()
+                            .map(|replica| {
+                                format!(
+                                    "{} · curseur {}",
+                                    replica.origin,
+                                    conversation
+                                        .source_cursors
+                                        .get(&replica.origin)
+                                        .copied()
+                                        .unwrap_or(0)
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    } else {
+                        format!(
+                            "{} · curseur {}",
+                            conversation.manifest.origin,
+                            conversation
+                                .source_cursors
+                                .get(&conversation.manifest.origin)
+                                .copied()
+                                .unwrap_or(0)
+                        )
+                    }
                 ));
             }
             return Ok(text);

@@ -1,8 +1,16 @@
 # Registre des décisions techniques
 
+## Réplication MP — décision du 8 novembre 2026
+
+- Périmètre du jalon 6 : synchronisation explicite serveur à serveur entre origines configurées, sans annuaire ni bascule automatique (jalon 7). Réutilisation de ring 0.17.14, reqwest 0.12.28, SQLx 0.8.6 et PostgreSQL 17 ; aucun nouveau protocole de chiffrement du contenu.
+- Politique : tuple JSON canonique `kova-dm-replica-policy-v1`, conversation, version positive, empreinte SHA-256 de la politique précédente et liste triée de couples origine/clé publique Ed25519 de serveur. Les deux appareils du manifeste signent exactement ce contenu. Une proposition ou une signature seule ne donne aucun droit. Le serveur contrôle la succession sous verrou ; aucune union automatique des branches concurrentes.
+- Fédération fermée : clés de pairs épinglées par configuration, correspondant aux descripteurs approuvés. Authentification applicative Ed25519 des requêtes et réponses en complément de HTTPS ; HTTP limité à la boucle locale de développement. Origines source/destination, méthode, chemin, empreinte du corps, nonce et échéance sont liés à la signature ; nonces consommés durablement. Aucun routage vers une adresse fournie librement par un utilisateur, aucune redirection HTTP.
+- Reprise : curseurs propres à chaque réplica, événements globaux immuables, déduplication exacte, dépendances présentes avant insertion. L'ordre d'affichage topologique avec départage UUID existant demeure indépendant des curseurs. Les politiques retirant un réplica interdisent les nouveaux transferts une fois connues ; elles ne peuvent effacer ses copies ni être connues instantanément pendant une partition.
+- Références consultées le 2026-11-08 : [ring Ed25519KeyPair 0.17.14](https://docs.rs/ring/0.17.14/ring/signature/struct.Ed25519KeyPair.html), [verrous PostgreSQL 17](https://www.postgresql.org/docs/17/explicit-locking.html). Ces sources valident les primitives et transactions employées ; le contrat de consentement et de fédération reste un protocole applicatif Kova, pas un protocole audité par ces projets. Les détails livrés et limites sont consignés dans `replication.md` après validation.
+
 ## MP privés — 8 novembre 2026
 
-Cette section remplace les réserves historiques « E2EE à sélectionner » ci-dessous ; la réplication reste à concevoir.
+Cette section remplace les réserves historiques « E2EE à sélectionner » ci-dessous ; la décision de réplication du jalon 6 figure plus haut.
 
 - MLS RFC 9420 via OpenMLS `=0.8.1`, fournisseur Libcrux `=0.3.1` et credentials Basic `=0.5.0`, isolés dans `kova-crypto` côté client. Suite X25519/AES-128-GCM/SHA-256/Ed25519, clés distinctes de l'authentification Kova. OpenMLS est pré-1.0 et le toolchain local est Rust 1.99.1. Choix borné au prototype, comparaison Signal, audit et limites détaillés dans [la décision E2EE](decisions/e2ee.md). Aucune dépendance MLS du serveur.
 - Un appareil explicitement vérifié par participant dans chaque conversation. Le KeyPackage MLS est lié par signature à l'identité et à l'autorisation d'appareil v2 ; le Welcome doit produire exactement les deux credentials et clés de signature attendus. Aucun ajout, commit MLS distant ou transfert d'historique implicite. Après expiration des attestations initiales (au plus 24 h), nouvel échange de preuves et nouvelle conversation nécessaires ; pas de renouvellement de roster dans ce jalon.

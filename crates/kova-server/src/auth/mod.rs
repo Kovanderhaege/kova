@@ -20,10 +20,13 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use std::{
+    collections::HashMap,
     error::Error,
+    fs,
     sync::{Arc, Mutex},
 };
 
+use ring::signature::KeyPair;
 use url::{Host, Url};
 
 pub(crate) struct Auth {
@@ -32,6 +35,9 @@ pub(crate) struct Auth {
     secure: bool,
 
     attempts: Mutex<attempts::Attempts>,
+    pub(crate) federation_private_key: Option<Vec<u8>>,
+    pub(crate) federation_public_key: Option<String>,
+    pub(crate) federation_peers: HashMap<String, String>,
 }
 
 pub fn routes(pool: PgPool, origin: &str) -> Result<Router, Box<dyn Error>> {
@@ -50,12 +56,20 @@ pub fn routes(pool: PgPool, origin: &str) -> Result<Router, Box<dyn Error>> {
             "KOVA_ORIGIN doit être une origine HTTPS exacte ou HTTP de boucle locale.".into(),
         );
     }
+    let FederationConfig {
+        private_key: federation_private_key,
+        public_key: federation_public_key,
+        peers: federation_peers,
+    } = federation_config(origin)?;
     let auth = Arc::new(Auth {
         pool,
         origin: origin.to_owned(),
         secure,
 
         attempts: Mutex::new(attempts::Attempts::new()),
+        federation_private_key,
+        federation_public_key,
+        federation_peers,
     });
     Ok(Router::new()
         .route("/auth/challenges", post(proof::challenge))
@@ -71,9 +85,67 @@ pub fn routes(pool: PgPool, origin: &str) -> Result<Router, Box<dyn Error>> {
         .merge(crate::communities::routes())
         .merge(crate::chat::routes())
         .merge(crate::dm::routes())
+        .merge(crate::replication::routes())
         .layer(DefaultBodyLimit::max(8192))
         .layer(middleware::from_fn_with_state(auth.clone(), protect))
         .with_state(auth))
+}
+
+struct FederationConfig {
+    private_key: Option<Vec<u8>>,
+    public_key: Option<String>,
+    peers: HashMap<String, String>,
+}
+
+fn federation_config(origin: &str) -> Result<FederationConfig, Box<dyn Error>> {
+    let key_path = std::env::var("KOVA_FEDERATION_KEY_FILE").ok();
+    let peers_json = std::env::var("KOVA_FEDERATION_PEERS").ok();
+    if key_path.is_none() && peers_json.is_none() {
+        return Ok(FederationConfig {
+            private_key: None,
+            public_key: None,
+            peers: HashMap::new(),
+        });
+    }
+    let key_path =
+        key_path.ok_or("KOVA_FEDERATION_KEY_FILE is required with peer configuration")?;
+    let key = fs::read(key_path)?;
+    let pair = ring::signature::Ed25519KeyPair::from_pkcs8(&key)
+        .map_err(|_| "KOVA_FEDERATION_KEY_FILE is not a valid Ed25519 PKCS#8 file")?;
+    let public_key = hex::encode(pair.public_key().as_ref());
+    let peers: Vec<kova_protocol::replication::ReplicaDescriptor> =
+        serde_json::from_str(peers_json.as_deref().unwrap_or("[]"))?;
+    let mut configured = HashMap::new();
+    for peer in peers {
+        validate_federation_origin(&peer.origin)?;
+        if peer.origin == origin
+            || kova_identity::public_key(&peer.public_key).is_none()
+            || configured.insert(peer.origin, peer.public_key).is_some()
+        {
+            return Err("Invalid or duplicate KOVA_FEDERATION_PEERS entry".into());
+        }
+    }
+    Ok(FederationConfig {
+        private_key: Some(key),
+        public_key: Some(public_key),
+        peers: configured,
+    })
+}
+
+fn validate_federation_origin(origin: &str) -> Result<(), Box<dyn Error>> {
+    let url = Url::parse(origin)?;
+    let local = match url.host() {
+        Some(Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(Host::Ipv6(ip)) => ip.is_loopback(),
+        Some(Host::Domain("localhost")) => true,
+        _ => false,
+    };
+    if url.origin().ascii_serialization() != origin
+        || !(url.scheme() == "https" || (local && url.scheme() == "http"))
+    {
+        return Err("Federation peer must be an exact HTTPS origin (HTTP is loopback-only)".into());
+    }
+    Ok(())
 }
 
 async fn protect(State(auth): State<Arc<Auth>>, request: Request, next: Next) -> Response {

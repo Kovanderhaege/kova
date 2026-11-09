@@ -143,3 +143,8 @@ pub fn valid_uuid(id: &str) -> bool {
 }
 
 pub mod dm;
+
+pub mod replication;
+
+#[cfg(test)]
+mod replication_tests;
