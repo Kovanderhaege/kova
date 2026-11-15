@@ -20,6 +20,7 @@ jobs:
         with:
           name: server-source-and-notices
           path: dist/server-source/
+          include-hidden-files: true
           if-no-files-found: error
       - run: python crates/kova-server/tests/distribution.py
       - run: python crates/kova-server/tests/persistence.py

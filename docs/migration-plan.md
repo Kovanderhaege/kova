@@ -197,3 +197,11 @@ aucun titulaire ni année n'a été déduit des noms d'auteurs.
 **Jalon 9 encore ouvert :** une nouvelle CI Linux et Windows réussie sur la
 révision retenue doit être obtenue avant clôture. Aucun push n'est effectué
 sans demande explicite, conformément à `AGENTS.md`.
+
+Le propriétaire a autorisé le push de la branche renommée `milestone-9`.
+La vérification de l'artefact serveur du [run 43740561215](https://github.com/Kovanderhaege/kova/actions/runs/43740561215)
+sur `2e29acd` a détecté l'omission des fichiers de provenance cachés par
+`upload-artifact` (notamment `.cargo_vcs_info.json`). L'upload du seul dossier
+de matériaux générés inclut désormais ces fichiers ; aucun secret de profil
+ou d'environnement n'est ajouté. L'inventaire exige leur conservation et la
+nouvelle exécution doit être vérifiée avant clôture.
