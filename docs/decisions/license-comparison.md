@@ -1,6 +1,6 @@
 # Choisir la licence de Kova
 
-Comparaison préparée le 6 novembre 2026, conservée comme contexte historique. **La [politique de licence et de modèle économique](licensing.md) fait désormais référence** : orientation AGPL-3.0-only serveur / Apache-2.0 protocole retenue, licence desktop et autres crates à finaliser. Les propositions ci-dessous ne remplacent pas cette décision. Les licences des dépendances restent applicables indépendamment de ce choix.
+Comparaison préparée le 6 novembre 2026, conservée comme contexte historique. **La [politique de licence et de modèle économique](licensing.md) fait désormais référence**, complétée le 15 novembre 2026 : AGPL-3.0-only serveur, GPL-3.0-only desktop/cœur client, Apache-2.0 protocole/identité/crypto. Les propositions ci-dessous ne remplacent pas cette décision. Les licences des dépendances restent applicables indépendamment de ce choix.
 
 ## Comparaison pratique
 

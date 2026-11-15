@@ -4,4 +4,4 @@
 
 Source : https://docs.rs/crate/gpui/0.2.2/source/examples/input.rs
 
-Cela ne choisit pas la licence des contributions propres à Kova. Le paquet final devra inclure un inventaire et les notices de toutes les dépendances transitives, pas seulement GPUI.
+Les contributions propres au desktop Kova sont sous GPL-3.0-only ; le code adapté de GPUI conserve ses attributions et sa licence Apache-2.0. Voir la répartition dans `LICENSE.md` à la racine. Le paquet final devra inclure un inventaire et les notices de toutes les dépendances transitives, pas seulement GPUI.

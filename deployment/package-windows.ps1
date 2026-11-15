@@ -7,7 +7,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Windows build failed.' }
     $output = Join-Path $workspace ('dist/windows-spike-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $output | Out-Null
-    Copy-Item -LiteralPath 'target/release/kova-desktop.exe', 'target/release/kova-identity.exe', 'apps/desktop/GPUI-LICENSE-APACHE', 'apps/desktop/THIRD-PARTY-NOTICES.md', 'docs/windows-spike.md' -Destination $output
+    Copy-Item -LiteralPath 'target/release/kova-desktop.exe', 'target/release/kova-identity.exe', 'LICENSE.md', 'LICENSE-GPL-3.0', 'LICENSE-AGPL-3.0', 'LICENSE-APACHE-2.0', 'apps/desktop/GPUI-LICENSE-APACHE', 'apps/desktop/THIRD-PARTY-NOTICES.md', 'docs/windows-spike.md' -Destination $output
     & cargo metadata --locked --format-version 1 | Set-Content -LiteralPath (Join-Path $output 'dependency-metadata.json') -Encoding utf8
     if ($LASTEXITCODE -ne 0) { throw 'Dependency inventory failed.' }
     Compress-Archive -LiteralPath $output -DestinationPath "$output.zip"

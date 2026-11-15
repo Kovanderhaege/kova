@@ -24,7 +24,7 @@ Le parcours de chat est décrit dans [le guide Windows](docs/windows-chat.md). L
 
 Le logiciel et toutes ses fonctionnalités restent gratuits, y compris pour les entreprises. Les revenus éventuels proviennent exclusivement de services facultatifs : hébergement géré, déploiement, migration, maintenance, support, SLA et développements spécifiques. L'auto-hébergement reste possible sans service officiel obligatoire.
 
-L'orientation retenue est `AGPL-3.0-only` pour le serveur et `Apache-2.0` pour le protocole et les bibliothèques indépendantes d'interopérabilité. La licence desktop et la répartition des autres crates restent à finaliser, ainsi que la compatibilité juridique, avant publication. Les fichiers `LICENSE` Kova seront ajoutés après validation de la répartition définitive. Voir la [décision complète](docs/decisions/licensing.md).
+Les licences retenues sont `AGPL-3.0-only` pour le serveur, `GPL-3.0-only` pour le desktop et le cœur client, et `Apache-2.0` pour le protocole, l'identité et la bibliothèque cryptographique. Les six manifestes Cargo déclarent cette répartition. Les textes et leur périmètre figurent dans [LICENSE.md](LICENSE.md). La vérification des droits, dépendances et notices de distribution reste nécessaire avant publication. Voir la [décision complète](docs/decisions/licensing.md).
 
 ## Vérification
 
