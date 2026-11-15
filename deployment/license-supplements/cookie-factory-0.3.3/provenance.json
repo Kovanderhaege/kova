@@ -1,0 +1,28 @@
+{
+  "name": "cookie-factory",
+  "version": "0.3.3",
+  "license_expression": "MIT",
+  "repository": "https://github.com/rust-bakery/cookie-factory",
+  "revision": "d36b805dbd7dd65f2df947235c5bcc573afe2c76",
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/LICENSES/MIT.txt",
+      "upstream_path": "LICENSES/MIT.txt",
+      "url": "https://raw.githubusercontent.com/rust-bakery/cookie-factory/d36b805dbd7dd65f2df947235c5bcc573afe2c76/LICENSES/MIT.txt",
+      "archive_url": "https://codeload.github.com/rust-bakery/cookie-factory/tar.gz/d36b805dbd7dd65f2df947235c5bcc573afe2c76",
+      "sha256": "d09216dc1ea5f273997667935a8d6514d80f00b89fb6954ecc3a43e0a6e360de",
+      "bytes": 1065,
+      "kind": "license_or_notice"
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official source archive inspected; included license/notice files and concrete attribution-bearing source/README text with hashes.",
+  "reference": "d36b805dbd7dd65f2df947235c5bcc573afe2c76",
+  "reference_basis": ".cargo_vcs_info.json git.sha1",
+  "archive_url": "https://codeload.github.com/rust-bakery/cookie-factory/tar.gz/d36b805dbd7dd65f2df947235c5bcc573afe2c76",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSES/MIT.txt"
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "name": "hpke-rs",
+  "version": "0.6.1",
+  "license_expression": "MPL-2.0",
+  "repository": "https://github.com/cryspen/hpke-rs",
+  "revision": "f3463e7530771d7f7116635335c25e7d2d11e861",
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/crates.io/.cargo_vcs_info.json",
+      "upstream_path": ".cargo_vcs_info.json",
+      "url": "https://static.crates.io/crates/hpke-rs/hpke-rs-0.6.1.crate#.cargo_vcs_info.json",
+      "source_archive": "https://static.crates.io/crates/hpke-rs/hpke-rs-0.6.1.crate",
+      "source_archive_sha256": "b6ad6a58eb3e0ee30be8bfc7a9770ae98adcfa1d9bc820a5847732ce84f70837",
+      "sha256": "afc9d3f2c1467e8c6f30cb0f69b90fb7748acd6c0e6705a136a0ddc3942dcc4e",
+      "bytes": 94,
+      "kind": "published_source_or_attribution"
+    },
+    {
+      "path": "texts/crates.io/Cargo.toml",
+      "upstream_path": "Cargo.toml",
+      "url": "https://static.crates.io/crates/hpke-rs/hpke-rs-0.6.1.crate#Cargo.toml",
+      "source_archive": "https://static.crates.io/crates/hpke-rs/hpke-rs-0.6.1.crate",
+      "source_archive_sha256": "b6ad6a58eb3e0ee30be8bfc7a9770ae98adcfa1d9bc820a5847732ce84f70837",
+      "sha256": "54c0b8055987f9d3994d101ee2af7aef03dacf18997c10b1ca1cb1bfa248a8e3",
+      "bytes": 2838,
+      "kind": "published_source_or_attribution"
+    },
+    {
+      "path": "texts/crates.io/Readme.md",
+      "upstream_path": "Readme.md",
+      "url": "https://static.crates.io/crates/hpke-rs/hpke-rs-0.6.1.crate#Readme.md",
+      "source_archive": "https://static.crates.io/crates/hpke-rs/hpke-rs-0.6.1.crate",
+      "source_archive_sha256": "b6ad6a58eb3e0ee30be8bfc7a9770ae98adcfa1d9bc820a5847732ce84f70837",
+      "sha256": "f6d36b1d91ea5fc25015038fa98f3fdbf7551b5daba546bdf7a83addb8de0b64",
+      "bytes": 2218,
+      "kind": "published_source_or_attribution"
+    },
+    {
+      "path": "texts/canonical/LICENSE-MPL-2.0.txt",
+      "source": "https://www.mozilla.org/media/MPL/2.0/index.txt",
+      "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+      "bytes": 16726,
+      "kind": "canonical_license_text",
+      "license_id": "MPL-2.0",
+      "note": "Mozilla canonical MPL 2.0 text; canonical terms only, not represented as an upstream copyright notice."
+    }
+  ],
+  "status": "recovered",
+  "reason": "Exact published crates.io source archive verified against Cargo.lock checksum plus unmodified canonical license text. Canonical text is a reference, not the upstream copyright notice; no copyright holder/year was synthesized.",
+  "reference": "f3463e7530771d7f7116635335c25e7d2d11e861",
+  "reference_basis": "exact crates.io published source archive verified against Cargo.lock checksum",
+  "archive_url": "https://codeload.github.com/cryspen/hpke-rs/tar.gz/f3463e7530771d7f7116635335c25e7d2d11e861",
+  "head_repository": "https://github.com/cryspen/hpke-rs",
+  "head_sha": "e1a4b12d3e630c713a89e97a2a91e4a597f3fc82",
+  "head_archive_url": "https://codeload.github.com/cryspen/hpke-rs/tar.gz/e1a4b12d3e630c713a89e97a2a91e4a597f3fc82",
+  "head_manifest_matches": [
+    [
+      "Cargo.toml",
+      "0.6.1",
+      "MPL-2.0"
+    ]
+  ],
+  "head_license_match": true,
+  "head_license_match_manifests": [
+    [
+      "Cargo.toml",
+      "0.6.1",
+      "MPL-2.0"
+    ]
+  ],
+  "crate_archive_url": "https://static.crates.io/crates/hpke-rs/hpke-rs-0.6.1.crate",
+  "crate_archive_sha256": "b6ad6a58eb3e0ee30be8bfc7a9770ae98adcfa1d9bc820a5847732ce84f70837",
+  "cargo_lock_sha256": "b6ad6a58eb3e0ee30be8bfc7a9770ae98adcfa1d9bc820a5847732ce84f70837",
+  "copyright_notice_missing": true,
+  "canonical_license_source": "SPDX identifiers in Cargo metadata; canonical license texts from pinned official sources",
+  "canonical_source_revision": null,
+  "copyright_notice_evidence": []
+}

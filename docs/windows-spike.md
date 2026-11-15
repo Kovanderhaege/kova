@@ -1,4 +1,4 @@
-# Prototype Windows avant jalon 3
+# Prototype Windows — jalon 0
 
 ## Périmètre
 
@@ -24,7 +24,7 @@ cargo build -p kova-desktop --release --locked
 - Saisie française, caractères composés, emoji et IME ; sélection au clavier et à la souris.
 - Ctrl+A/C/V/X, presse-papiers entre applications, collage multiligne : consigner les limites de l'éditeur monoligne.
 - Enregistrer un brouillon, fermer puis relancer : contenu conservé dans `%LOCALAPPDATA%/Kova/spike/cache.sqlite`.
-- Notifications Windows : **non implémentées/non validées** ; reste du jalon 0.
+- Notifications Windows : **non implémentées/non validées** ; affectées au jalon 12 avec les non-lus et la réception indépendante du panneau.
 - ZIP de développement : script fourni, exécution sur une machine sans outils de compilation à prouver. Signature, installeur et mises à jour restent au jalon distribution.
 
 ## Client d'identité Windows de diagnostic
@@ -39,7 +39,7 @@ cargo run -p kova-client-core --bin kova-identity -- logout http://127.0.0.1:808
 
 `init` refuse de remplacer une identité déjà présente. Le binaire affiche le profil public, jamais les jetons. Les clés et sessions sont dans le coffre Windows ; la CLI Linux échoue explicitement. L'interface d'identité utilise maintenant le même cœur client, avec sauvegarde/restauration chiffrée et association : voir [le guide d'identité](windows-identity.md). Les résultats historiques ci-dessous concernent le prototype de liste (`--spike`).
 
-La preuve du jalon 0 reste ouverte tant que les essais natifs, notifications et packaging ne sont pas réalisés. Une compilation croisée ou une CI qui compile ne remplace pas ces essais.
+Les réserves historiques ci-dessous sont complétées par les validations manuelles rapportées le 6 novembre et les preuves de distribution du jalon 8. Les notifications restent affectées au jalon 12 ; signature, mise à jour et recette de publication restent au jalon 14. Une compilation croisée ou une CI qui compile ne remplace pas ces essais. Le périmètre de support et l'état consolidé figurent dans [release-scope.md](release-scope.md).
 
 ## Résultats obtenus pendant cette passe
 

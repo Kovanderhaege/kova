@@ -1,0 +1,32 @@
+{
+  "name": "dtor",
+  "version": "0.0.6",
+  "license_expression": "Apache-2.0 OR MIT",
+  "repository": "https://github.com/mmastrac/rust-ctor",
+  "revision": "e8c8b4a82de72311a5257db0502ced728081e745",
+  "path_in_vcs": "dtor",
+  "files": [
+    {
+      "path": "texts/LICENSE-APACHE",
+      "upstream_path": "LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/mmastrac/rust-ctor/e8c8b4a82de72311a5257db0502ced728081e745/LICENSE-APACHE",
+      "sha256": "a8ad31b1c3f40dca5a84119351b8fa8ddc868edd77fad8a8ebf6d8f2d16fa4ae",
+      "bytes": 11324
+    },
+    {
+      "path": "texts/LICENSE-MIT",
+      "upstream_path": "LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/mmastrac/rust-ctor/e8c8b4a82de72311a5257db0502ced728081e745/LICENSE-MIT",
+      "sha256": "bccaa8b6c09f94e81f06696e179dbe058464bbdfbc823b6d49cada1d71e84ac3",
+      "bytes": 1022
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official repository texts at exact Cargo source revision; only package and ancestor directory notices included.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE-APACHE"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "e8c8b4a82de72311a5257db0502ced728081e745"
+}

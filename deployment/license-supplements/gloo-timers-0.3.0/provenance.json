@@ -1,0 +1,33 @@
+{
+  "name": "gloo-timers",
+  "version": "0.3.0",
+  "license_expression": "MIT OR Apache-2.0",
+  "repository": "https://github.com/rustwasm/gloo",
+  "revision": "f3bb1d1a1c33dbcccaf26446aca7d0cea8e9d574",
+  "path_in_vcs": "crates/timers",
+  "files": [
+    {
+      "path": "texts/LICENSE-APACHE",
+      "upstream_path": "LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/rustwasm/gloo/f3bb1d1a1c33dbcccaf26446aca7d0cea8e9d574/LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "bytes": 10847
+    },
+    {
+      "path": "texts/LICENSE-MIT",
+      "upstream_path": "LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/rustwasm/gloo/f3bb1d1a1c33dbcccaf26446aca7d0cea8e9d574/LICENSE-MIT",
+      "sha256": "5a6f5443ea473f130adbdcf84254761d1292bc79759b5253915d4b5e7afbef66",
+      "bytes": 1078
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official repository texts at exact Cargo source revision; only package and ancestor directory notices included.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE-APACHE",
+    "texts/LICENSE-MIT"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "f3bb1d1a1c33dbcccaf26446aca7d0cea8e9d574"
+}

@@ -1,5 +1,11 @@
 # Registre des décisions techniques
 
+## Clôture du socle — 15 novembre 2026
+
+- Pas de changement de dépendance Rust ni des licences des six crates. Python **3.11+** et sa bibliothèque standard assemblent les notices, les empreintes et les sources ; Git donne les fichiers suivis et la révision. `cargo metadata --locked` inventorie tout le workspace ; `cargo vendor --locked --versioned-dirs` fournit les sources et la configuration de remplacement pour reconstruction hors ligne. Ce sur-ensemble inclut tests/builds/autres plateformes, sans prétendre représenter la liaison du seul binaire. Les suppléments de textes amont sont conservés avec URL/révision et SHA-256 ; une absence bloque l'assemblage. Pas d'outil tiers de résolution automatique de licences ni de nouveaux formats cryptographiques.
+- Actions officielles `checkout`, `setup-python`, `upload-artifact` **v6**, runtime Node 24 vérifié dans leurs `action.yml` à ce tag, compatibles avec les runners hébergés actuels. Remplacement des actions Node 20 signalées dans la CI existante. Python de CI reste 3.11. La version de Rust n'est pas modifiée ; le risque futur `proc-macro-error2 2.0.1` est détaillé dans [le périmètre](release-scope.md).
+- Sources vérifiées le 2026-11-15 : [Cargo vendor](https://doc.rust-lang.org/cargo/commands/cargo-vendor.html), [checkout v6](https://github.com/actions/checkout/tree/v6), [setup-python v6](https://github.com/actions/setup-python/tree/v6), [upload-artifact v6](https://github.com/actions/upload-artifact/tree/v6). Les règles de redistribution et les limites de cette revue sont consignées dans [license-review.md](license-review.md).
+
 ## Distribution MVP — 15 novembre 2026
 
 - Compose de production autonome, sans ports hôte pour l'API et PostgreSQL ; Caddy **2.11.9-alpine** termine HTTPS, conserve certificats/état sur volumes et relaie REST/WebSocket. Pas de changement des origines signées ni de confiance implicite dans les en-têtes de proxy. Compose de développement conservé séparément.

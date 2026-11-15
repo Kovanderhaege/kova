@@ -1,0 +1,39 @@
+{
+  "name": "wasite",
+  "version": "0.1.0",
+  "license_expression": "Apache-2.0 OR BSL-1.0 OR MIT",
+  "repository": "https://github.com/ardaku/wasite",
+  "revision": "0c72934ad329ab4670eb017581640c2d6eceb289",
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/LICENSE_APACHE_2_0.txt",
+      "upstream_path": "LICENSE_APACHE_2_0.txt",
+      "url": "https://raw.githubusercontent.com/ardaku/wasite/0c72934ad329ab4670eb017581640c2d6eceb289/LICENSE_APACHE_2_0.txt",
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "bytes": 9723
+    },
+    {
+      "path": "texts/LICENSE_BOOST_1_0.txt",
+      "upstream_path": "LICENSE_BOOST_1_0.txt",
+      "url": "https://raw.githubusercontent.com/ardaku/wasite/0c72934ad329ab4670eb017581640c2d6eceb289/LICENSE_BOOST_1_0.txt",
+      "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
+      "bytes": 1338
+    },
+    {
+      "path": "texts/LICENSE_MIT.txt",
+      "upstream_path": "LICENSE_MIT.txt",
+      "url": "https://raw.githubusercontent.com/ardaku/wasite/0c72934ad329ab4670eb017581640c2d6eceb289/LICENSE_MIT.txt",
+      "sha256": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1",
+      "bytes": 1036
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official GitHub source tree and exact-revision raw licensing text, retrieved from HTML tree pages.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE_APACHE_2_0.txt"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "0c72934ad329ab4670eb017581640c2d6eceb289"
+}

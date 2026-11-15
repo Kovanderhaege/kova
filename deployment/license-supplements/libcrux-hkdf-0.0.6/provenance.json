@@ -1,0 +1,33 @@
+{
+  "name": "libcrux-hkdf",
+  "version": "0.0.6",
+  "license_expression": "Apache-2.0",
+  "repository": "https://github.com/cryspen/libcrux",
+  "revision": "5732f8d113972da8ce19d3f9dd7763a0409b1c25",
+  "path_in_vcs": "crates/algorithms/hkdf",
+  "files": [
+    {
+      "path": "texts/LICENSE",
+      "upstream_path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/cryspen/libcrux/5732f8d113972da8ce19d3f9dd7763a0409b1c25/LICENSE",
+      "sha256": "c517c468fc7f8d83319dd8b3743923f6891e0dfbaf7c57a874758c8f39b98564",
+      "bytes": 10756
+    },
+    {
+      "path": "texts/LICENSE-MIT",
+      "upstream_path": "LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/cryspen/libcrux/5732f8d113972da8ce19d3f9dd7763a0409b1c25/LICENSE-MIT",
+      "sha256": "e40d41f94826514279cc7648088180e19621f7acd281dd394a0534d535da51fd",
+      "bytes": 1064
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official repository texts at exact Cargo source revision; only package and ancestor directory notices included.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE",
+    "texts/LICENSE-MIT"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "5732f8d113972da8ce19d3f9dd7763a0409b1c25"
+}

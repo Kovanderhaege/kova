@@ -1,0 +1,47 @@
+{
+  "name": "crc-catalog",
+  "version": "2.5.0",
+  "license_expression": "MIT OR Apache-2.0",
+  "repository": "https://github.com/akhilles/crc-catalog",
+  "revision": "ed4ad631f22b05055c21a3a4127eb7cf6d75bb62",
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/LICENSES/Apache-2.0.txt",
+      "upstream_path": "LICENSES/Apache-2.0.txt",
+      "url": "https://raw.githubusercontent.com/akhilles/crc-catalog/ed4ad631f22b05055c21a3a4127eb7cf6d75bb62/LICENSES/Apache-2.0.txt",
+      "archive_url": "https://codeload.github.com/akhilles/crc-catalog/tar.gz/ed4ad631f22b05055c21a3a4127eb7cf6d75bb62",
+      "sha256": "d3cdb764b98283ee7c3a3cea8d374e2a2957322374378d1f3263f4d512741fc3",
+      "bytes": 11346,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/LICENSES/MIT.txt",
+      "upstream_path": "LICENSES/MIT.txt",
+      "url": "https://raw.githubusercontent.com/akhilles/crc-catalog/ed4ad631f22b05055c21a3a4127eb7cf6d75bb62/LICENSES/MIT.txt",
+      "archive_url": "https://codeload.github.com/akhilles/crc-catalog/tar.gz/ed4ad631f22b05055c21a3a4127eb7cf6d75bb62",
+      "sha256": "5ef8fcfb6cccec8fcae043c834099a60c8b7406408db576e026d2b7e67dc5cf5",
+      "bytes": 1073,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/README.md",
+      "upstream_path": "README.md",
+      "url": "https://raw.githubusercontent.com/akhilles/crc-catalog/ed4ad631f22b05055c21a3a4127eb7cf6d75bb62/README.md",
+      "archive_url": "https://codeload.github.com/akhilles/crc-catalog/tar.gz/ed4ad631f22b05055c21a3a4127eb7cf6d75bb62",
+      "sha256": "120d33bbfb488f42175754e399a410f2f9afc0c56b999ca953c66626aaeee3d1",
+      "bytes": 789,
+      "kind": "attribution_source"
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official source archive inspected; included license/notice files and concrete attribution-bearing source/README text with hashes.",
+  "reference": "ed4ad631f22b05055c21a3a4127eb7cf6d75bb62",
+  "reference_basis": ".cargo_vcs_info.json git.sha1",
+  "archive_url": "https://codeload.github.com/akhilles/crc-catalog/tar.gz/ed4ad631f22b05055c21a3a4127eb7cf6d75bb62",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSES/Apache-2.0.txt",
+    "texts/LICENSES/MIT.txt"
+  ]
+}

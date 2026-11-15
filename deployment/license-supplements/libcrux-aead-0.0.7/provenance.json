@@ -1,0 +1,33 @@
+{
+  "name": "libcrux-aead",
+  "version": "0.0.7",
+  "license_expression": "Apache-2.0",
+  "repository": "https://github.com/cryspen/libcrux",
+  "revision": "f0c2b0a9506bdb28e3ecfeed07c64532da542b21",
+  "path_in_vcs": "crates/primitives/aead",
+  "files": [
+    {
+      "path": "texts/LICENSE",
+      "upstream_path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/cryspen/libcrux/f0c2b0a9506bdb28e3ecfeed07c64532da542b21/LICENSE",
+      "sha256": "c517c468fc7f8d83319dd8b3743923f6891e0dfbaf7c57a874758c8f39b98564",
+      "bytes": 10756
+    },
+    {
+      "path": "texts/LICENSE-MIT",
+      "upstream_path": "LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/cryspen/libcrux/f0c2b0a9506bdb28e3ecfeed07c64532da542b21/LICENSE-MIT",
+      "sha256": "e40d41f94826514279cc7648088180e19621f7acd281dd394a0534d535da51fd",
+      "bytes": 1064
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official repository texts at exact Cargo source revision; only package and ancestor directory notices included.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE",
+    "texts/LICENSE-MIT"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "f0c2b0a9506bdb28e3ecfeed07c64532da542b21"
+}

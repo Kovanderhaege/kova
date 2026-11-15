@@ -1,0 +1,25 @@
+{
+  "name": "openmls_libcrux_crypto",
+  "version": "0.3.1",
+  "license_expression": "MIT",
+  "repository": "https://github.com/openmls/openmls",
+  "revision": "47dbedecad0c1fd8eb5368d582250ebfcc1e1ce6",
+  "path_in_vcs": "libcrux_crypto",
+  "files": [
+    {
+      "path": "texts/LICENSE",
+      "upstream_path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/openmls/openmls/47dbedecad0c1fd8eb5368d582250ebfcc1e1ce6/LICENSE",
+      "sha256": "43e5e3c4b5cca67f9ea912f7e1929702a848aa765d3b3e14f25d3838a5a5565d",
+      "bytes": 1058
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official repository licensing files downloaded directly from raw source at exact Cargo revision; package and ancestor paths checked.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "47dbedecad0c1fd8eb5368d582250ebfcc1e1ce6"
+}

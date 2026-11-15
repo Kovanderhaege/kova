@@ -143,3 +143,57 @@ Le scénario automatisé `replication.py` avec `KOVA_TEST_RUST_CLIENT=1` réussi
 Recette graphique réellement observée : deux processus du desktop extrait du ZIP, sur la même session Windows, utilisent deux profils synthétiques distincts et deux serveurs natifs avec PostgreSQL indépendants. La fixture `desktop_recipe.py` et son test Rust ignoré préparent identités, sessions, communauté, MP et consentement pour B. Depuis les fenêtres : Alice envoie un message public sur A, Bob le synchronise et le lit ; le MP initial est déchiffré ; A est arrêté (connexion à la sonde refusée), Alice envoie un MP transmis via B, Bob le déchiffre et répond via B, Alice déchiffre la réponse. Après redémarrage de A, la reprise depuis l'interface réplique les événements : trois événements distincts, mêmes identifiants dans A et B, historique local conservé et aucun doublon. Les deux fenêtres sont fermées normalement et la fixture supprime ses conteneurs/volumes temporaires.
 
 La création initiale des identités et les approbations de cette recette sont automatisées par la fixture, pas cliquées dans l'interface. La reprise d'un envoi en attente après redémarrage du cache est vérifiée par le test Rust réseau, pas par une fermeture/réouverture graphique avec un message en attente. Les profils de recette nommés dans `target/desktop-recipe-…/state.json` restent dans Credential Manager et `%LOCALAPPDATA%/Kova/profiles` pour inspection ; le profil `default` n'a pas été utilisé. Cette preuve locale ne couvre ni deux machines physiques, ni Windows vierge, ni un certificat ACME public, ni ARM64/macOS/Linux desktop. La CI distante n'a pas été exécutée. Les limites cryptographiques et de disponibilité des jalons précédents restent applicables.
+
+## Préparation du jalon 9 — 15 novembre 2026
+
+Le [périmètre de publication](release-scope.md) consolide les preuves des jalons
+0–8 et les plateformes réellement exercées. Les notifications sont affectées au
+12, la disponibilité publique et l'installation guidée au 13, et la recette
+finale de publication au 14. Ces reports ne valent pas validation des fonctions.
+
+Les six manifestes et textes de licence concordent. La [revue de
+distribution](license-review.md) documente les droits, dépendances, sources et
+limites de preuve. Le packaging ajoute les textes tiers, un inventaire avec
+empreintes/provenance et une archive des sources Kova/Cargo verrouillées.
+Les suppléments conservent les octets originaux ; les copyrights absents ne
+sont pas inventés et restent signalés. Les nouvelles contributions ont une
+politique explicite. Aucune répartition de licence des six crates n'est rouverte.
+
+La CI distante du commit `b8284667efd1e4ebf6c9d813c3b786ba756fb5f5` a été
+inspectée : [run 43735416464](https://github.com/Kovanderhaege/kova/actions/runs/43735416464),
+job Linux `verify` réussi (toutes les suites PostgreSQL incluses), job Windows
+en échec après le test PowerShell qui annonçait pourtant son succès. Le mock
+d'échec conservait `LASTEXITCODE=17` ; le harnais termine désormais à zéro
+uniquement lorsque ses assertions réussissent. Les erreurs réelles, l'absence
+de notices, les empreintes altérées et les sources modifiées pendant le build
+restent bloquantes. Les actions Node 20 signalées par ce run passent à v6/Node24,
+et la CI doit conserver les sources et notices de la nouvelle révision.
+
+Validation locale : `cargo test --workspace --locked`, `cargo fmt --all --
+--check` et `cargo clippy --workspace --locked` réussissent sous Windows MSVC
+(Rust 1.99.1). Les avertissements et leur impact sont documentés dans le
+périmètre de publication. Les 16 tests Python de sauvegarde/conformité et le
+test PowerShell (Debug/Release, erreurs, mutation des sources, contenu et sommes
+récursives) passent, y compris le wrapper de processus utilisé par GitHub Actions.
+La lecture effective des matériaux de licence valide 780 paquets tiers et
+1 604 fichiers de notices/provenance. Les suites PostgreSQL non affectées ne
+sont pas réexécutées localement ; leur succès distant ci-dessus appartient à
+la révision précédente.
+
+Un véritable ZIP Debug de 142 790 354 octets a été assemblé sur cette branche de
+travail. Ses 1 622 fichiers sont rapprochés du manifeste SHA-256, et l'empreinte
+du desktop correspond au build MSVC. L'archive source a été extraite : toutes
+les empreintes des fichiers Kova correspondent à l'inventaire ; `cargo metadata
+--offline --locked --format-version 1` réussit avec un `CARGO_HOME` vide et
+retrouve les 786 paquets du workspace depuis les sources fournies. Cela valide
+la résolution hors ligne, pas une recompilation indépendante ni un build
+reproductible. Le paquet déclare honnêtement sa base `b828466` et son arbre
+modifié ; la CI doit produire les artefacts de la révision retenue propre.
+Les suppléments distinguent 66 révisions exactes, sept révisions ultérieures et
+neuf références canoniques associées aux archives crates.io contrôlées. Douze
+paquets sans avis concret de copyright restent signalés dans l'inventaire ;
+aucun titulaire ni année n'a été déduit des noms d'auteurs.
+
+**Jalon 9 encore ouvert :** une nouvelle CI Linux et Windows réussie sur la
+révision retenue doit être obtenue avant clôture. Aucun push n'est effectué
+sans demande explicite, conformément à `AGENTS.md`.

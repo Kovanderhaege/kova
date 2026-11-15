@@ -1,0 +1,33 @@
+{
+  "name": "age-core",
+  "version": "0.12.0",
+  "license_expression": "MIT OR Apache-2.0",
+  "repository": "https://github.com/str4d/rage",
+  "revision": "f6383f367e9aa514a3b5fbce7feede08a425d647",
+  "path_in_vcs": "age-core",
+  "files": [
+    {
+      "path": "texts/LICENSE-APACHE",
+      "upstream_path": "LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/str4d/rage/f6383f367e9aa514a3b5fbce7feede08a425d647/LICENSE-APACHE",
+      "sha256": "3708458dee7f359ac6c9c5558023ed481be87e5372c43ebd7f2ca7ad23c12026",
+      "bytes": 10848
+    },
+    {
+      "path": "texts/LICENSE-MIT",
+      "upstream_path": "LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/str4d/rage/f6383f367e9aa514a3b5fbce7feede08a425d647/LICENSE-MIT",
+      "sha256": "fe56c030c2d8c3404a37fe711cebb27ebea13d0aacf7e3524db4198335ad8cd1",
+      "bytes": 1077
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official repository texts at exact Cargo source revision; only package and ancestor directory notices included.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE-APACHE",
+    "texts/LICENSE-MIT"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "f6383f367e9aa514a3b5fbce7feede08a425d647"
+}

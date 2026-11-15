@@ -1,0 +1,46 @@
+{
+  "name": "convert_case",
+  "version": "0.4.0",
+  "license_expression": "MIT",
+  "repository": "https://github.com/rutrum/convert-case",
+  "revision": "300d9eef9e8c970e15f324afbc3df8b6a4ebbf71",
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/LICENSE",
+      "upstream_path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/rutrum/convert-case/637e1aec1717e3a4af07dff1c1dec7a4eb971b2a/LICENSE",
+      "archive_url": "https://codeload.github.com/rutrum/convert-case/tar.gz/637e1aec1717e3a4af07dff1c1dec7a4eb971b2a",
+      "sha256": "aed7b1758e35afa0cd0fde059d61950747ca11cd0e5e169cb21c11608daed772",
+      "bytes": 1062,
+      "kind": "license_or_notice"
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official current upstream archive checked; license expression matches, and upstream license/notice/attribution files have provenance and hashes.",
+  "reference": "637e1aec1717e3a4af07dff1c1dec7a4eb971b2a",
+  "reference_basis": "official upstream current HEAD; package version differs or historical VCS ref unavailable, but upstream package manifest has the same license expression",
+  "archive_url": "https://codeload.github.com/rutrum/convert-case/tar.gz/300d9eef9e8c970e15f324afbc3df8b6a4ebbf71",
+  "head_repository": "https://github.com/rutrum/convert-case",
+  "head_sha": "637e1aec1717e3a4af07dff1c1dec7a4eb971b2a",
+  "head_archive_url": "https://codeload.github.com/rutrum/convert-case/tar.gz/637e1aec1717e3a4af07dff1c1dec7a4eb971b2a",
+  "head_manifest_matches": [
+    [
+      "Cargo.toml",
+      "0.12.0",
+      "MIT"
+    ]
+  ],
+  "head_license_match": true,
+  "head_license_match_manifests": [
+    [
+      "Cargo.toml",
+      "0.12.0",
+      "MIT"
+    ]
+  ],
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE"
+  ]
+}

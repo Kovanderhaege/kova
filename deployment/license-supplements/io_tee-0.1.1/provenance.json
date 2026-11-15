@@ -1,0 +1,26 @@
+{
+  "name": "io_tee",
+  "version": "0.1.1",
+  "license_expression": "MIT OR Apache-2.0",
+  "repository": "https://github.com/TheOnlyMrCat/io_tee",
+  "revision": "8a7adecebf3429cbc58a0368751d1851dfaf58ed",
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/README.md",
+      "upstream_path": "README.md",
+      "url": "https://raw.githubusercontent.com/TheOnlyMrCat/io_tee/8a7adecebf3429cbc58a0368751d1851dfaf58ed/README.md",
+      "archive_url": "https://codeload.github.com/TheOnlyMrCat/io_tee/tar.gz/8a7adecebf3429cbc58a0368751d1851dfaf58ed",
+      "sha256": "0ba20a4b5d8188a85014c5f6d52b5407aec2077986c05f6ba686f9899b767b95",
+      "bytes": 774,
+      "kind": "attribution_source"
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official source archive inspected; included license/notice files and concrete attribution-bearing source/README text with hashes.",
+  "reference": "8a7adecebf3429cbc58a0368751d1851dfaf58ed",
+  "reference_basis": ".cargo_vcs_info.json git.sha1",
+  "archive_url": "https://codeload.github.com/TheOnlyMrCat/io_tee/tar.gz/8a7adecebf3429cbc58a0368751d1851dfaf58ed",
+  "copyright_notice_missing": true,
+  "copyright_notice_evidence": []
+}

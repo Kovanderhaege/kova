@@ -1,0 +1,81 @@
+{
+  "name": "mac",
+  "version": "0.1.1",
+  "license_expression": "MIT/Apache-2.0",
+  "repository": "https://github.com/reem/rust-mac",
+  "revision": null,
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/crates.io/Cargo.toml",
+      "upstream_path": "Cargo.toml",
+      "url": "https://static.crates.io/crates/mac/mac-0.1.1.crate#Cargo.toml",
+      "source_archive": "https://static.crates.io/crates/mac/mac-0.1.1.crate",
+      "source_archive_sha256": "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4",
+      "sha256": "6d465c5e5a4b3e197049e9fb7393b2f996c1c654e6ded700afce046fac2f7969",
+      "bytes": 259,
+      "kind": "published_source_or_attribution"
+    },
+    {
+      "path": "texts/crates.io/README.md",
+      "upstream_path": "README.md",
+      "url": "https://static.crates.io/crates/mac/mac-0.1.1.crate#README.md",
+      "source_archive": "https://static.crates.io/crates/mac/mac-0.1.1.crate",
+      "source_archive_sha256": "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4",
+      "sha256": "8edb7a912d295acf1e1cfeafdd19a6813a63b301c7bbfda3c67f65509bd8d8cc",
+      "bytes": 484,
+      "kind": "published_source_or_attribution"
+    },
+    {
+      "path": "texts/canonical/LICENSE-Apache-2.0.txt",
+      "source": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358,
+      "kind": "canonical_license_text",
+      "license_id": "Apache-2.0",
+      "note": "Apache Software Foundation canonical Apache-2.0 text; canonical terms only, not represented as an upstream copyright notice."
+    },
+    {
+      "path": "texts/canonical/LICENSE-MIT.txt",
+      "source": "https://raw.githubusercontent.com/spdx/license-list-data/31846481de7ea17d92f2f46fad76abe58b2e9bb0/text/MIT.txt",
+      "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+      "bytes": 1078,
+      "kind": "canonical_license_text",
+      "license_id": "MIT",
+      "note": "SPDX License List canonical MIT text; canonical terms only, not represented as an upstream copyright notice."
+    }
+  ],
+  "status": "recovered",
+  "reason": "Exact published crates.io source archive verified against Cargo.lock checksum plus unmodified canonical license text. Canonical text is a reference, not the upstream copyright notice; no copyright holder/year was synthesized.",
+  "reference": "0.1.1",
+  "reference_basis": "exact crates.io published source archive verified against Cargo.lock checksum",
+  "archive_url": "https://codeload.github.com/reem/rust-mac/tar.gz/0.1.1",
+  "other_reference_attempts": [
+    "v0.1.1: HTTPError: HTTP Error 404: Not Found"
+  ],
+  "head_repository": "https://github.com/reem/rust-mac",
+  "head_sha": "66afc663b68a65633ea165c742b5a9c6734581c2",
+  "head_archive_url": "https://codeload.github.com/reem/rust-mac/tar.gz/66afc663b68a65633ea165c742b5a9c6734581c2",
+  "head_manifest_matches": [
+    [
+      "Cargo.toml",
+      "0.1.1",
+      "MIT/Apache-2.0"
+    ]
+  ],
+  "head_license_match": true,
+  "head_license_match_manifests": [
+    [
+      "Cargo.toml",
+      "0.1.1",
+      "MIT/Apache-2.0"
+    ]
+  ],
+  "crate_archive_url": "https://static.crates.io/crates/mac/mac-0.1.1.crate",
+  "crate_archive_sha256": "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4",
+  "cargo_lock_sha256": "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4",
+  "copyright_notice_missing": true,
+  "canonical_license_source": "SPDX identifiers in Cargo metadata; canonical license texts from pinned official sources",
+  "canonical_source_revision": "31846481de7ea17d92f2f46fad76abe58b2e9bb0",
+  "copyright_notice_evidence": []
+}

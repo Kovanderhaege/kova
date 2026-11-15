@@ -12,5 +12,10 @@ license; the full policy is in [licensing.md](docs/decisions/licensing.md).
 
 Third-party code retains its original licenses and attribution notices,
 including the GPUI-derived desktop input component. These licenses do not grant
-rights to the Kova name or logo. Files outside the component directories above
-are not assigned a blanket license by this table.
+rights to the Kova name or logo.
+
+Kova-authored documentation, deployment/test tooling, the reference Python
+client, and root workspace/CI configuration are provided under GPL-3.0-only.
+This does not relicense third-party license texts, notices, supplements or
+adapted code, which retain their upstream terms. See
+[the distribution review](docs/license-review.md).

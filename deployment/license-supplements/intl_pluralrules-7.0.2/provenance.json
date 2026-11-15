@@ -1,0 +1,32 @@
+{
+  "name": "intl_pluralrules",
+  "version": "7.0.2",
+  "license_expression": "Apache-2.0/MIT",
+  "repository": "https://github.com/zbraniecki/pluralrules",
+  "revision": "d0715d5b7cca72e228d6e6c4de154bd30dfdd06a",
+  "path_in_vcs": "intl_pluralrules",
+  "files": [
+    {
+      "path": "texts/intl_pluralrules/LICENSE-APACHE",
+      "upstream_path": "intl_pluralrules/LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/zbraniecki/pluralrules/d0715d5b7cca72e228d6e6c4de154bd30dfdd06a/intl_pluralrules/LICENSE-APACHE",
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "bytes": 9723
+    },
+    {
+      "path": "texts/intl_pluralrules/LICENSE-MIT",
+      "upstream_path": "intl_pluralrules/LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/zbraniecki/pluralrules/d0715d5b7cca72e228d6e6c4de154bd30dfdd06a/intl_pluralrules/LICENSE-MIT",
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "bytes": 1023
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official repository texts at exact Cargo source revision; only package and ancestor directory notices included.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/intl_pluralrules/LICENSE-APACHE"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "d0715d5b7cca72e228d6e6c4de154bd30dfdd06a"
+}

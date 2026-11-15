@@ -1,0 +1,33 @@
+{
+  "name": "pathfinder_simd",
+  "version": "0.5.6",
+  "license_expression": "MIT OR Apache-2.0",
+  "repository": "https://github.com/servo/pathfinder",
+  "revision": "6c3c0466f451c5bd2007087728cd168798cd64e8",
+  "path_in_vcs": "simd",
+  "files": [
+    {
+      "path": "texts/LICENSE-APACHE",
+      "upstream_path": "LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "bytes": 10847
+    },
+    {
+      "path": "texts/LICENSE-MIT",
+      "upstream_path": "LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/LICENSE-MIT",
+      "sha256": "0621878e61f0d0fda054bcbe02df75192c28bde1ecc8289cbd86aeba2dd72720",
+      "bytes": 1071
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official GitHub source tree and exact-revision raw licensing text, retrieved from HTML tree pages.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE-APACHE",
+    "texts/LICENSE-MIT"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "6c3c0466f451c5bd2007087728cd168798cd64e8"
+}

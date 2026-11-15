@@ -1,0 +1,378 @@
+{
+  "name": "pathfinder_geometry",
+  "version": "0.5.1",
+  "license_expression": "MIT/Apache-2.0",
+  "repository": "https://github.com/servo/pathfinder",
+  "revision": "a5e98fac00f433fe2ff4b2135383d82491b8bfc5",
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/LICENSE-APACHE",
+      "upstream_path": "LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/LICENSE-APACHE",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "bytes": 10847,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/LICENSE-MIT",
+      "upstream_path": "LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/LICENSE-MIT",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "0621878e61f0d0fda054bcbe02df75192c28bde1ecc8289cbd86aeba2dd72720",
+      "bytes": 1071,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/README.md",
+      "upstream_path": "README.md",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/README.md",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "2ac6afba2c5f0ed3f9edf7ab00fca7bdffb52ebdb739de029d6e072699017d39",
+      "bytes": 6235,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/c/src/lib.rs",
+      "upstream_path": "c/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/c/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "19160ba918c47aababb45cc59b149e20a6d04ed6d252e78ae188f8fafc1d7196",
+      "bytes": 33621,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/canvas/src/lib.rs",
+      "upstream_path": "canvas/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/canvas/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "3ec43609d181cd383e57669c8e37f23d6dc788793a6cd2e76bad01fd22e55488",
+      "bytes": 34091,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/color/src/lib.rs",
+      "upstream_path": "color/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/color/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "bd2ff9aeb8461c8076af7fb29709b411b01e9d9f87af12ef196d2f9645d2378e",
+      "bytes": 6360,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/content/src/lib.rs",
+      "upstream_path": "content/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/content/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "8e71fcf3f7828a7ee1bdf6e427be343e941dee3f5317d95ca4e64ccda9830d72",
+      "bytes": 783,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/demo/android/rust/src/lib.rs",
+      "upstream_path": "demo/android/rust/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/demo/android/rust/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "3d08f014e0081c383138bf7b44d9a5b1dda4c3ed0da6dc62fe087132df850f4f",
+      "bytes": 8571,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/demo/common/src/lib.rs",
+      "upstream_path": "demo/common/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/demo/common/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "a80a7a2e923b2e7d683efeb56c8d6183ffda8b878a9ee51cc44fe276a10f4143",
+      "bytes": 35001,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/demo/magicleap/src/lib.rs",
+      "upstream_path": "demo/magicleap/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/demo/magicleap/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "0014971ebef1d88ba9371812c1931d22dfb8d19c3ad408843205adf871de7887",
+      "bytes": 8800,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/examples/canvas_nanovg/LICENSE",
+      "upstream_path": "examples/canvas_nanovg/LICENSE",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/examples/canvas_nanovg/LICENSE",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "45185a6680ed83863bef33e1055f9fd76374df4b81c957802c19a286c982dfd2",
+      "bytes": 877,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/examples/canvas_webgl_minimal/src/lib.rs",
+      "upstream_path": "examples/canvas_webgl_minimal/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/examples/canvas_webgl_minimal/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "d0b135e507cfd12eb15b475e051644b8833ba2e78abdb7b45c099f84f49d12f1",
+      "bytes": 3112,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/examples/canvas_webgl_minimal/www/LICENSE-APACHE",
+      "upstream_path": "examples/canvas_webgl_minimal/www/LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/examples/canvas_webgl_minimal/www/LICENSE-APACHE",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90",
+      "bytes": 10850,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/examples/canvas_webgl_minimal/www/LICENSE-MIT",
+      "upstream_path": "examples/canvas_webgl_minimal/www/LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/examples/canvas_webgl_minimal/www/LICENSE-MIT",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "ef36e00d5e8dd8c6260a46855a1a578ff546916c7624119a60832e5ce5c510e4",
+      "bytes": 1052,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/examples/canvas_webgl_minimal/www/README.md",
+      "upstream_path": "examples/canvas_webgl_minimal/www/README.md",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/examples/canvas_webgl_minimal/www/README.md",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "06d60699af573a691b095bded90a83e5d2464e98c56e36d0d6bd1608c4d45a8f",
+      "bytes": 2595,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/export/src/lib.rs",
+      "upstream_path": "export/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/export/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "4443becf8c5374c2b08f71787fd7fd7ca8fd77699c5898ea980fe47d7b903066",
+      "bytes": 7035,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/geometry/src/lib.rs",
+      "upstream_path": "geometry/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/geometry/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "cedfb2d85e682e9b9e327a169347bf0cebecd52668e1ed91a3af05ec91b42090",
+      "bytes": 613,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/gl/src/lib.rs",
+      "upstream_path": "gl/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/gl/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "2b96b1c38787e2229912261b8eca1e8865d50d30b676c26bfc7d1eb96a2fafc0",
+      "bytes": 56453,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/gpu/src/lib.rs",
+      "upstream_path": "gpu/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/gpu/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "1955bff67c92f1ec00599c6bb9374179e117fe58586688ce05a2c2408d195c63",
+      "bytes": 17449,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/lottie/src/lib.rs",
+      "upstream_path": "lottie/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/lottie/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "1495f9d6452db22cfc80c66e6d623a40e6e3ee34e092b9b5978b46f99df54f41",
+      "bytes": 8434,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/metal/src/lib.rs",
+      "upstream_path": "metal/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/metal/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "d138f8a6c3956710ef588f31ecb640ed72343db6d33b8e861be208fbc4da4d59",
+      "bytes": 110935,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/renderer/src/lib.rs",
+      "upstream_path": "renderer/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/renderer/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "b0711972b1a369799448947704b082de7570ad35b0f2928f0216a05c7217f0a5",
+      "bytes": 699,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/resources/build.rs",
+      "upstream_path": "resources/build.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/resources/build.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "ae2f1c49c1f0e79d3cc7095c45d117f36da2241e67f252a4464d4a95a056e1f3",
+      "bytes": 2173,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/resources/fonts/LICENSE-APACHE",
+      "upstream_path": "resources/fonts/LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/resources/fonts/LICENSE-APACHE",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "3ddf9be5c28fe27dad143a5dc76eea25222ad1dd68934a047064e56ed2fa40c5",
+      "bytes": 11560,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/resources/fonts/LICENSE-SIL",
+      "upstream_path": "resources/fonts/LICENSE-SIL",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/resources/fonts/LICENSE-SIL",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "1866a2bdd87ea534376f01dd95ff6ed7157afd17cf6b5c450a3351dcd30d65a7",
+      "bytes": 4543,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/resources/src/lib.rs",
+      "upstream_path": "resources/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/resources/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "319a251f138a9a712b626c57b1eb0e8a63c1e34569b76016642f4b6d2090f2f8",
+      "bytes": 1082,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/simd/build.rs",
+      "upstream_path": "simd/build.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/simd/build.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "b515ee342a21c17c65615c6001a90bf1d131e4a46046ae1b0ed92e33d258bb58",
+      "bytes": 800,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/simd/src/lib.rs",
+      "upstream_path": "simd/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/simd/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "7bc08757defaab4b17d7ceabb702cc0b8dfcd30c6ad364dec6e88a8e2c0ae646",
+      "bytes": 1345,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/svg/src/lib.rs",
+      "upstream_path": "svg/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/svg/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "9cb86aeffdc823f6a3c9ea22fac34f8805daa004de14bc8326ad8181f6b9fac9",
+      "bytes": 20954,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/swf/src/lib.rs",
+      "upstream_path": "swf/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/swf/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "77c34601624835ddaf555c48a2fc5f080914086df51f1456fa4ed075abd3c1b3",
+      "bytes": 6338,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/text/src/lib.rs",
+      "upstream_path": "text/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/text/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "4413acf2be934e37bcfc53270e919f1c4f48b115f054a389ac17cfc5c694e432",
+      "bytes": 9907,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/ui/src/lib.rs",
+      "upstream_path": "ui/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/ui/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "0e16ce1fcc9c7cc6f0e0d21baf01c25a9cf60d2ee4f2c135e56baa5325bfc85d",
+      "bytes": 38986,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/web_canvas/src/lib.rs",
+      "upstream_path": "web_canvas/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/web_canvas/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "74c6947552d9011b034e14d4418a49c2f46ded531d9f8f7f7312cebf6f11fad5",
+      "bytes": 9268,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/webgl/src/lib.rs",
+      "upstream_path": "webgl/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/servo/pathfinder/6c3c0466f451c5bd2007087728cd168798cd64e8/webgl/src/lib.rs",
+      "archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+      "sha256": "ea9339f383a0183e296181cc71475caf9df6b63d37db8d1243dd5052cc6d7c3d",
+      "bytes": 39434,
+      "kind": "attribution_source"
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official current upstream archive checked; license expression matches, and upstream license/notice/attribution files have provenance and hashes.",
+  "fetch_errors": [
+    "HTTP Error 404: Not Found"
+  ],
+  "archive_errors": [
+    "a5e98fac00f433fe2ff4b2135383d82491b8bfc5: HTTPError: HTTP Error 404: Not Found"
+  ],
+  "head_repository": "https://github.com/servo/pathfinder",
+  "head_sha": "6c3c0466f451c5bd2007087728cd168798cd64e8",
+  "head_archive_url": "https://codeload.github.com/servo/pathfinder/tar.gz/6c3c0466f451c5bd2007087728cd168798cd64e8",
+  "head_manifest_matches": [
+    [
+      "geometry/Cargo.toml",
+      "0.5.1",
+      "MIT OR Apache-2.0"
+    ]
+  ],
+  "head_license_match": true,
+  "head_license_match_manifests": [
+    [
+      "geometry/Cargo.toml",
+      "0.5.1",
+      "MIT OR Apache-2.0"
+    ]
+  ],
+  "reference": "6c3c0466f451c5bd2007087728cd168798cd64e8",
+  "reference_basis": "official upstream current HEAD; package version differs or historical VCS ref unavailable, but upstream package manifest has the same license expression",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE-APACHE",
+    "texts/LICENSE-MIT",
+    "texts/c/src/lib.rs",
+    "texts/canvas/src/lib.rs",
+    "texts/color/src/lib.rs",
+    "texts/content/src/lib.rs",
+    "texts/demo/android/rust/src/lib.rs",
+    "texts/demo/common/src/lib.rs",
+    "texts/demo/magicleap/src/lib.rs",
+    "texts/examples/canvas_nanovg/LICENSE",
+    "texts/examples/canvas_webgl_minimal/src/lib.rs",
+    "texts/examples/canvas_webgl_minimal/www/LICENSE-APACHE",
+    "texts/export/src/lib.rs",
+    "texts/geometry/src/lib.rs",
+    "texts/gl/src/lib.rs",
+    "texts/gpu/src/lib.rs",
+    "texts/lottie/src/lib.rs",
+    "texts/metal/src/lib.rs",
+    "texts/renderer/src/lib.rs",
+    "texts/resources/build.rs",
+    "texts/resources/fonts/LICENSE-APACHE",
+    "texts/resources/fonts/LICENSE-SIL",
+    "texts/resources/src/lib.rs",
+    "texts/simd/build.rs",
+    "texts/simd/src/lib.rs",
+    "texts/svg/src/lib.rs",
+    "texts/swf/src/lib.rs",
+    "texts/text/src/lib.rs",
+    "texts/ui/src/lib.rs",
+    "texts/web_canvas/src/lib.rs",
+    "texts/webgl/src/lib.rs"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "taffy",
+  "version": "0.9.0",
+  "license_expression": "MIT",
+  "repository": "https://github.com/DioxusLabs/taffy",
+  "revision": "599b1b7d7410d97e13bafc4c01fbe6d7a9cf060a",
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/LICENSE.md",
+      "upstream_path": "LICENSE.md",
+      "url": "https://raw.githubusercontent.com/DioxusLabs/taffy/599b1b7d7410d97e13bafc4c01fbe6d7a9cf060a/LICENSE.md",
+      "sha256": "a7083ef3dd41a65eeb2162c2c091b0082e2724fb4c6ed029b363c7840d244ecd",
+      "bytes": 1420
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official GitHub source tree and exact-revision raw licensing text, retrieved from HTML tree pages.",
+  "copyright_notice_missing": true,
+  "copyright_notice_evidence": [],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "599b1b7d7410d97e13bafc4c01fbe6d7a9cf060a"
+}

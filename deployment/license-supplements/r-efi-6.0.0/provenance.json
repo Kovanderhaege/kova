@@ -1,0 +1,37 @@
+{
+  "name": "r-efi",
+  "version": "6.0.0",
+  "license_expression": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+  "repository": "https://github.com/r-efi/r-efi",
+  "revision": "7e1b0322d31d625f81a5656096330934f9cd835d",
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/AUTHORS",
+      "upstream_path": "AUTHORS",
+      "url": "https://raw.githubusercontent.com/r-efi/r-efi/7e1b0322d31d625f81a5656096330934f9cd835d/AUTHORS",
+      "archive_url": "https://codeload.github.com/r-efi/r-efi/tar.gz/7e1b0322d31d625f81a5656096330934f9cd835d",
+      "sha256": "d027e91dbc9cdbb2f1190068e498bd6b61cff022b6a032b191021ba658d96111",
+      "bytes": 3733,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/README.md",
+      "upstream_path": "README.md",
+      "url": "https://raw.githubusercontent.com/r-efi/r-efi/7e1b0322d31d625f81a5656096330934f9cd835d/README.md",
+      "archive_url": "https://codeload.github.com/r-efi/r-efi/tar.gz/7e1b0322d31d625f81a5656096330934f9cd835d",
+      "sha256": "420f65fec3ba2e89d49da51b222d2881d26959037a7b7d3794143db4bd4627b1",
+      "bytes": 2919,
+      "kind": "attribution_source"
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official source archive inspected; included license/notice files and concrete attribution-bearing source/README text with hashes.",
+  "reference": "7e1b0322d31d625f81a5656096330934f9cd835d",
+  "reference_basis": ".cargo_vcs_info.json git.sha1",
+  "archive_url": "https://codeload.github.com/r-efi/r-efi/tar.gz/7e1b0322d31d625f81a5656096330934f9cd835d",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/AUTHORS"
+  ]
+}

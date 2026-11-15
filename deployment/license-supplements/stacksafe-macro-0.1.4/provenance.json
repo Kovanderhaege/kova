@@ -1,0 +1,25 @@
+{
+  "name": "stacksafe-macro",
+  "version": "0.1.4",
+  "license_expression": "Apache-2.0",
+  "repository": "https://github.com/fast/stacksafe",
+  "revision": "a5c029b7d3a5fe6771ecd79266b6e21313cfa174",
+  "path_in_vcs": "stacksafe-macro",
+  "files": [
+    {
+      "path": "texts/LICENSE",
+      "upstream_path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/fast/stacksafe/a5c029b7d3a5fe6771ecd79266b6e21313cfa174/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official GitHub source tree and exact-revision raw licensing text, retrieved from HTML tree pages.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "a5c029b7d3a5fe6771ecd79266b6e21313cfa174"
+}

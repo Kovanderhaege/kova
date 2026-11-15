@@ -4,12 +4,19 @@ $workspace = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('kova-package-test-' + [guid]::NewGuid().ToString('N'))
 $packageOutput = Join-Path $fixture 'packages'
 $failureOutput = Join-Path $fixture 'failure-packages'
+$complianceFailureOutput = Join-Path $fixture 'compliance-failure-packages'
+$sourceMutationOutput = Join-Path $fixture 'source-mutation-packages'
 $targetDirectory = Join-Path $fixture 'custom-target'
+$trackedSource = Join-Path $fixture 'tracked-source.rs'
+New-Item -ItemType Directory -Path $fixture -Force | Out-Null
+Set-Content -LiteralPath $trackedSource -Value 'source before build'
 foreach ($profile in @('debug', 'release')) {
     New-Item -ItemType Directory -Path (Join-Path $targetDirectory $profile) -Force | Out-Null
 }
 $global:kovaPackageBuildArguments = @()
 $global:kovaPackageFailBuild = $false
+$global:kovaPackageFailCompliance = $false
+$global:kovaPackageMutateSource = $false
 
 function cargo {
     if ($args[0] -eq 'metadata') {
@@ -39,6 +46,34 @@ function cargo {
     throw "Unexpected cargo command: $args"
 }
 
+function git {
+    if ($args -contains 'ls-files') {
+        Write-Output $trackedSource
+        $global:LASTEXITCODE = 0
+        return
+    }
+    throw "Unexpected git command: $args"
+}
+
+function python {
+    if ($global:kovaPackageFailCompliance) {
+        $global:LASTEXITCODE = 23
+        return
+    }
+    $outputIndex = [Array]::IndexOf($args, '--output') + 1
+    if ($outputIndex -le 0) { throw 'Compliance command omitted --output.' }
+    $complianceOutput = $args[$outputIndex]
+    if ($global:kovaPackageMutateSource) {
+        Set-Content -LiteralPath $trackedSource -Value 'source changed during compliance assembly'
+    }
+    New-Item -ItemType Directory -Path (Join-Path $complianceOutput 'THIRD-PARTY-LICENSES/serde') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $complianceOutput 'dependency-inventory.json') -Value '{"package_kind":"unsigned-development-zip","configuration":"Debug","packages":[{"name":"serde"}]}'
+    Set-Content -LiteralPath (Join-Path $complianceOutput 'SOURCE.md') -Value 'Source instructions fixture.'
+    Set-Content -LiteralPath (Join-Path $complianceOutput 'THIRD-PARTY-LICENSES/serde/LICENSE-MIT') -Value 'MIT fixture.'
+    Set-Content -LiteralPath (Join-Path $complianceOutput 'corresponding-source.tar.gz') -Value 'source archive fixture.'
+    $global:LASTEXITCODE = 0
+}
+
 try {
     Push-Location $workspace
     foreach ($configuration in @('Debug', 'Release')) {
@@ -53,11 +88,11 @@ try {
 
         $contents = Join-Path $fixture "contents-$configuration"
         Expand-Archive -LiteralPath $archivePath -DestinationPath $contents
-        $files = Get-ChildItem -LiteralPath $contents -File
         $required = @('kova-desktop.exe', 'kova-identity.exe', 'GPUI-LICENSE-APACHE', 'THIRD-PARTY-NOTICES.md',
             'LICENSE.md', 'LICENSE-GPL-3.0', 'LICENSE-AGPL-3.0', 'LICENSE-APACHE-2.0',
             'windows-spike.md', 'windows-identity.md', 'windows-communities.md', 'windows-chat.md',
-            'windows-dm.md', 'distribution.md', 'dependency-inventory.json', 'SHA256SUMS')
+            'windows-dm.md', 'distribution.md', 'dependency-inventory.json', 'SOURCE.md',
+            'corresponding-source.tar.gz', 'SHA256SUMS')
         foreach ($name in $required) {
             if (-not (Test-Path -LiteralPath (Join-Path $contents $name) -PathType Leaf)) {
                 throw "$configuration package is missing $name."
@@ -69,13 +104,18 @@ try {
             throw "$configuration package metadata is inaccurate."
         }
         if ($inventory.packages.name -notcontains 'serde') { throw 'Dependency inventory omitted a registry dependency.' }
+        if (-not (Test-Path -LiteralPath (Join-Path $contents 'THIRD-PARTY-LICENSES/serde/LICENSE-MIT') -PathType Leaf)) {
+            throw "$configuration package omitted a nested third-party license."
+        }
 
-        foreach ($line in Get-Content -LiteralPath (Join-Path $contents 'SHA256SUMS')) {
+        $checksumLines = @(Get-Content -LiteralPath (Join-Path $contents 'SHA256SUMS'))
+        $expectedFiles = @(Get-ChildItem -LiteralPath $contents -File -Recurse | Where-Object Name -ne 'SHA256SUMS')
+        if ($checksumLines.Count -ne $expectedFiles.Count) { throw "$configuration checksum manifest does not cover all files." }
+        foreach ($line in $checksumLines) {
             $parts = $line -split '  ', 2
             $actual = (Get-FileHash -LiteralPath (Join-Path $contents $parts[1]) -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($actual -ne $parts[0]) { throw "$configuration checksum mismatch for $($parts[1])." }
         }
-        if ($files.Count -ne $required.Count) { throw "$configuration checksum manifest has unexpected coverage." }
 
         $archiveFullPath = [IO.Path]::GetFullPath($archivePath)
         $outputFullPath = [IO.Path]::GetFullPath($packageOutput)
@@ -96,7 +136,40 @@ try {
         $failedPackageFiles = @(Get-ChildItem -LiteralPath $failureOutput -Force)
         if ($failedPackageFiles.Count -ne 0) { throw 'Cargo build failure left package artifacts.' }
     }
-    Write-Output 'OK: Debug/Release args, failed-build handling, package content, licenses, inventory and SHA-256 verified.'
+    $global:kovaPackageFailBuild = $false
+    $global:kovaPackageFailCompliance = $true
+    try {
+        & $scriptPath -Configuration Debug -OutputDirectory $complianceFailureOutput | Out-Null
+        throw 'A failed compliance command unexpectedly created a package.'
+    } catch {
+        if ($_.Exception.Message -eq 'A failed compliance command unexpectedly created a package.') { throw }
+        if ($_.Exception.Message -notmatch 'compliance material generation failed') { throw }
+    }
+    $complianceFailureArchives = @()
+    if (Test-Path -LiteralPath $complianceFailureOutput -PathType Container) {
+        $complianceFailureArchives = @(Get-ChildItem -LiteralPath $complianceFailureOutput -Filter '*.zip' -File)
+    }
+    if ($complianceFailureArchives.Count -gt 0) {
+        throw 'Compliance failure left a package ZIP.'
+    }
+    $global:kovaPackageFailCompliance = $false
+    $global:kovaPackageMutateSource = $true
+    try {
+        & $scriptPath -Configuration Debug -OutputDirectory $sourceMutationOutput | Out-Null
+        throw 'A changed source snapshot unexpectedly created a package.'
+    } catch {
+        if ($_.Exception.Message -eq 'A changed source snapshot unexpectedly created a package.') { throw }
+        if ($_.Exception.Message -notmatch 'Tracked sources changed during build/source assembly') { throw }
+    }
+    $sourceMutationArchives = @()
+    if (Test-Path -LiteralPath $sourceMutationOutput -PathType Container) {
+        $sourceMutationArchives = @(Get-ChildItem -LiteralPath $sourceMutationOutput -Filter '*.zip' -File)
+    }
+    if ($sourceMutationArchives.Count -gt 0) {
+        throw 'Source mutation left a package ZIP.'
+    }
+    $global:LASTEXITCODE = 0
+    Write-Output 'OK: Debug/Release args, source mutation and failure handling, compliance materials, licenses and recursive SHA-256 verified.'
 } finally {
     Pop-Location
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
@@ -110,4 +183,6 @@ try {
     }
     Remove-Variable -Name kovaPackageBuildArguments -Scope Global -ErrorAction SilentlyContinue
     Remove-Variable -Name kovaPackageFailBuild -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable -Name kovaPackageFailCompliance -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable -Name kovaPackageMutateSource -Scope Global -ErrorAction SilentlyContinue
 }

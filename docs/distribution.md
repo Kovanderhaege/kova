@@ -106,7 +106,7 @@ La clé privée doit être lisible par l'UID 65534 du conteneur API.
 
 ## Paquet Windows
 
-Sur Windows avec Rust MSVC, outils C++ et SDK Windows :
+Sur Windows avec PowerShell 7 (`pwsh`, comme en CI), Rust MSVC, outils C++ et SDK Windows, Git et Python 3.11+ :
 
 ```powershell
 ./deployment/package-windows.ps1 -Configuration Release
@@ -115,6 +115,13 @@ Sur Windows avec Rust MSVC, outils C++ et SDK Windows :
 `Debug` permet un paquet local plus rapide. Le script respecte
 `CARGO_TARGET_DIR` et affiche le chemin d'un ZIP dans `dist/`, contenant desktop,
 CLI d'identité, guides, notices, inventaire des dépendances et `SHA256SUMS`.
+Les sommes couvrent récursivement tous les fichiers du paquet. Le ZIP contient
+aussi `THIRD-PARTY-LICENSES/`, `SOURCE.md` et `corresponding-source.tar.gz`.
+L'assemblage vérifie les suppléments de licences et refuse les textes manquants.
+Il utilise Cargo vendor et peut télécharger les sources des autres plateformes.
+Prévoir plusieurs Gio libres et quelques minutes supplémentaires. Ajouter à Git
+les nouveaux fichiers du travail avant de produire un paquet de développement ;
+la révision et les modifications locales sont déclarées dans l'inventaire.
 Extraire le ZIP dans un dossier accessible puis lancer `kova-desktop.exe`.
 Vérifier les sommes avant utilisation avec `Get-FileHash -Algorithm SHA256`.
 Une mise à jour est manuelle : fermer Kova et extraire le nouveau ZIP ailleurs.
@@ -123,6 +130,32 @@ Le profil et le coffre restent séparés du dossier d'exécutables.
 La signature Authenticode, un installeur, la mise à jour automatique et l'essai
 sur un Windows vierge restent à valider avant publication destinée au grand
 public. Aucun certificat d'éditeur n'est embarqué ou généré silencieusement.
+
+## Matériel de source serveur et publication
+
+Depuis le checkout exact utilisé pour construire le serveur, avec Git, Cargo et
+Python 3.11+, produire un dossier neuf (un dossier existant est refusé) :
+
+```sh
+python deployment/compliance.py --output dist/server-source
+```
+
+La CI Linux conserve ce même matériel comme artefact `server-source-and-notices`.
+Publier les sources et notices à côté de chaque binaire/image, à accès équivalent,
+et conserver les versions déployées : les artefacts CI expirent. Le dossier
+contient les sources Cargo verrouillées et les scripts Kova, avec instructions
+de reconstruction hors ligne ; les outils et SDK restent des prérequis externes.
+Ne pas distribuer une image modifiée sous la seule référence de la branche
+principale. Les images actuelles sont construites par l'exploitant depuis ses
+sources ; aucune image serveur Kova publique précompilée n'est livrée.
+
+Pour un serveur AGPL modifié accessible par le réseau, afficher clairement aux
+utilisateurs une offre d'accès aux sources de cette version. Le proxy peut servir
+le dossier ci-dessus sur une URL publique dédiée, ou pointer vers un téléchargement
+durable. Vérifier réellement ce lien avant ouverture. Conserver aussi les notices
+et sources requises des images tierces (Debian/Caddy/PostgreSQL) si elles sont
+redistribuées. Voir [la revue des licences](license-review.md) et
+[le périmètre de publication](release-scope.md).
 
 ## Recette Alice/Bob
 

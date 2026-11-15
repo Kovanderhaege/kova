@@ -6,6 +6,15 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+function Get-KovaSourceFingerprint {
+    $paths = & git -c core.quotepath=false ls-files
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot inventory tracked build sources.' }
+    @($paths | ForEach-Object {
+        if (Test-Path -LiteralPath $_ -PathType Leaf) {
+            '{0}  {1}' -f (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash, $_
+        }
+    }) -join "`n"
+}
 $workspace = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $OutputDirectory = Join-Path $workspace 'dist'
@@ -29,8 +38,21 @@ try {
     $buildArguments = @('build', '-p', 'kova-desktop', '-p', 'kova-client-core')
     if ($Configuration -eq 'Release') { $buildArguments += '--release' }
     $buildArguments += '--locked'
+    $buildSourceFingerprint = Get-KovaSourceFingerprint
     & cargo @buildArguments
     if ($LASTEXITCODE -ne 0) { throw 'Windows build failed.' }
+
+    $output = Join-Path $outputRoot ('windows-development-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $output -Force | Out-Null
+    $complianceDirectory = Join-Path $output 'compliance'
+    & python (Join-Path $PSScriptRoot 'compliance.py') --output $complianceDirectory
+    if ($LASTEXITCODE -ne 0) { throw 'Distribution compliance material generation failed.' }
+    if (-not (Test-Path -LiteralPath $complianceDirectory -PathType Container)) {
+        throw 'Distribution compliance material was not generated.'
+    }
+    if ($buildSourceFingerprint -ne (Get-KovaSourceFingerprint)) {
+        throw 'Tracked sources changed during build/source assembly; rebuild before packaging.'
+    }
 
     $artifactDirectory = Join-Path $targetDirectory $Configuration.ToLowerInvariant()
     $artifacts = @(
@@ -49,8 +71,6 @@ try {
         'docs/windows-dm.md',
         'docs/distribution.md'
     )
-    $output = Join-Path $outputRoot ('windows-development-' + [guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Path $output -Force | Out-Null
     try {
         foreach ($artifact in $artifacts) {
             if ($artifact.EndsWith('.exe')) {
@@ -66,24 +86,23 @@ try {
             Copy-Item -LiteralPath $source -Destination (Join-Path $output $destinationName)
         }
 
-        $inventory = [ordered]@{
-            configuration = $Configuration
-            package_kind = 'unsigned-development-zip'
-            generated_at_utc = [DateTime]::UtcNow.ToString('o')
-            workspace_packages = @($metadata.workspace_members | ForEach-Object {
-                    $workspaceId = $_
-                    $metadata.packages | Where-Object { $_.id -eq $workspaceId } | ForEach-Object { $_.name }
-                })
-            packages = @($metadata.packages | ForEach-Object {
-                    [ordered]@{ name = $_.name; version = $_.version; source = $_.source }
-                })
-        }
-        $inventory | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $output 'dependency-inventory.json') -Encoding utf8
+        Get-ChildItem -LiteralPath $complianceDirectory -Force | Move-Item -Destination $output
+        Remove-Item -LiteralPath $complianceDirectory
+        $inventoryPath = Join-Path $output 'dependency-inventory.json'
+        $inventory = Get-Content -LiteralPath $inventoryPath -Raw | ConvertFrom-Json -AsHashtable
+        $inventory['configuration'] = $Configuration
+        $inventory['package_kind'] = 'unsigned-development-zip'
+        $inventory | ConvertTo-Json -Depth 32 | Set-Content -LiteralPath $inventoryPath -Encoding utf8
 
-        $hashes = Get-ChildItem -LiteralPath $output -File | Sort-Object Name | ForEach-Object {
-            '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+        $checksumPath = Join-Path $output 'SHA256SUMS'
+        $hashes = Get-ChildItem -LiteralPath $output -File -Recurse |
+            Where-Object { $_.FullName -ne $checksumPath } |
+            Sort-Object { [IO.Path]::GetRelativePath($output, $_.FullName).Replace('\', '/') } |
+            ForEach-Object {
+                $relativePath = [IO.Path]::GetRelativePath($output, $_.FullName).Replace('\', '/')
+                '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $relativePath
         }
-        $hashes | Set-Content -LiteralPath (Join-Path $output 'SHA256SUMS') -Encoding utf8
+        $hashes | Set-Content -LiteralPath $checksumPath -Encoding utf8
         $archive = "$output.zip"
         Compress-Archive -Path (Join-Path $output '*') -DestinationPath $archive
         Write-Output $archive

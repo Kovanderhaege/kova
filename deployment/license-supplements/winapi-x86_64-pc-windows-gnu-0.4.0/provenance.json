@@ -1,0 +1,154 @@
+{
+  "name": "winapi-x86_64-pc-windows-gnu",
+  "version": "0.4.0",
+  "license_expression": "MIT/Apache-2.0",
+  "repository": "https://github.com/retep998/winapi-rs",
+  "revision": null,
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/LICENSE-APACHE",
+      "upstream_path": "LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/LICENSE-APACHE",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "bytes": 11357,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/LICENSE-MIT",
+      "upstream_path": "LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/LICENSE-MIT",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "ce7bc3499fee93d5022ef430d5e4201e79a6d9154f3974e42f41349f0569e09b",
+      "bytes": 1073,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/build.rs",
+      "upstream_path": "build.rs",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/build.rs",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "fa1782968d33345772093666220c7841c2fb4f6dd32fa47951c68a3a400a1a98",
+      "bytes": 34992,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/i686/LICENSE-APACHE",
+      "upstream_path": "i686/LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/i686/LICENSE-APACHE",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "bytes": 11357,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/i686/LICENSE-MIT",
+      "upstream_path": "i686/LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/i686/LICENSE-MIT",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "ce7bc3499fee93d5022ef430d5e4201e79a6d9154f3974e42f41349f0569e09b",
+      "bytes": 1073,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/i686/build.rs",
+      "upstream_path": "i686/build.rs",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/i686/build.rs",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "66442a733af1f0972d3d097a21b2785fc51bdfb94b64f9827667e4c7dcf0e326",
+      "bytes": 784,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/i686/src/lib.rs",
+      "upstream_path": "i686/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/i686/src/lib.rs",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "756279a1c9addf89a1e61d91590942cc48abe13f014a09000142c6243bc9e5e4",
+      "bytes": 347,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/src/lib.rs",
+      "upstream_path": "src/lib.rs",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/src/lib.rs",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "2ed57f0c077ca9064dbe2269eada5ba310e0adf06bdbfdecb1e4b331345e0c2d",
+      "bytes": 2827,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/x86_64/LICENSE-APACHE",
+      "upstream_path": "x86_64/LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/x86_64/LICENSE-APACHE",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "bytes": 11357,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/x86_64/LICENSE-MIT",
+      "upstream_path": "x86_64/LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/x86_64/LICENSE-MIT",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "ce7bc3499fee93d5022ef430d5e4201e79a6d9154f3974e42f41349f0569e09b",
+      "bytes": 1073,
+      "kind": "license_or_notice"
+    },
+    {
+      "path": "texts/x86_64/build.rs",
+      "upstream_path": "x86_64/build.rs",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/x86_64/build.rs",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "676f545274bae0a76bbcee7aac7a08290dee293f0518a80d2cba2c429af88288",
+      "bytes": 786,
+      "kind": "attribution_source"
+    },
+    {
+      "path": "texts/x86_64/src/lib.rs",
+      "upstream_path": "x86_64/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/retep998/winapi-rs/5b1829956ef645f3c2f8236ba18bb198ca4c2468/x86_64/src/lib.rs",
+      "archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+      "sha256": "756279a1c9addf89a1e61d91590942cc48abe13f014a09000142c6243bc9e5e4",
+      "bytes": 347,
+      "kind": "attribution_source"
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official current upstream archive checked; license expression matches, and upstream license/notice/attribution files have provenance and hashes.",
+  "archive_errors": [
+    "v0.4.0: HTTPError: HTTP Error 404: Not Found",
+    "0.4.0: HTTPError: HTTP Error 404: Not Found",
+    "release-0.4.0: HTTPError: HTTP Error 404: Not Found"
+  ],
+  "head_repository": "https://github.com/retep998/winapi-rs",
+  "head_sha": "5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+  "head_archive_url": "https://codeload.github.com/retep998/winapi-rs/tar.gz/5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+  "head_manifest_matches": [
+    [
+      "x86_64/Cargo.toml",
+      "0.4.0",
+      "MIT/Apache-2.0"
+    ]
+  ],
+  "head_license_match": true,
+  "head_license_match_manifests": [
+    [
+      "x86_64/Cargo.toml",
+      "0.4.0",
+      "MIT/Apache-2.0"
+    ]
+  ],
+  "reference": "5b1829956ef645f3c2f8236ba18bb198ca4c2468",
+  "reference_basis": "official upstream current HEAD; package version differs or historical VCS ref unavailable, but upstream package manifest has the same license expression",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE-APACHE",
+    "texts/LICENSE-MIT",
+    "texts/i686/LICENSE-APACHE",
+    "texts/i686/LICENSE-MIT",
+    "texts/x86_64/LICENSE-APACHE",
+    "texts/x86_64/LICENSE-MIT"
+  ]
+}

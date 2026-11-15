@@ -1,0 +1,33 @@
+{
+  "name": "libcrux-poly1305",
+  "version": "0.0.4",
+  "license_expression": "Apache-2.0",
+  "repository": "https://github.com/cryspen/libcrux",
+  "revision": "026a87ab6d88ad3626b9fbbf3710d1e0483c1849",
+  "path_in_vcs": "poly1305",
+  "files": [
+    {
+      "path": "texts/LICENSE",
+      "upstream_path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/cryspen/libcrux/026a87ab6d88ad3626b9fbbf3710d1e0483c1849/LICENSE",
+      "sha256": "c517c468fc7f8d83319dd8b3743923f6891e0dfbaf7c57a874758c8f39b98564",
+      "bytes": 10756
+    },
+    {
+      "path": "texts/LICENSE-MIT",
+      "upstream_path": "LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/cryspen/libcrux/026a87ab6d88ad3626b9fbbf3710d1e0483c1849/LICENSE-MIT",
+      "sha256": "e40d41f94826514279cc7648088180e19621f7acd281dd394a0534d535da51fd",
+      "bytes": 1064
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official repository licensing files downloaded directly from raw source at exact Cargo revision; package and ancestor paths checked.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE",
+    "texts/LICENSE-MIT"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "026a87ab6d88ad3626b9fbbf3710d1e0483c1849"
+}

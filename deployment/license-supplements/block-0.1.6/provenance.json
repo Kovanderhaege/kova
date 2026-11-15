@@ -1,0 +1,72 @@
+{
+  "name": "block",
+  "version": "0.1.6",
+  "license_expression": "MIT",
+  "repository": "https://github.com/SSheldon/rust-block",
+  "revision": null,
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/crates.io/Cargo.toml",
+      "upstream_path": "Cargo.toml",
+      "url": "https://static.crates.io/crates/block/block-0.1.6.crate#Cargo.toml",
+      "source_archive": "https://static.crates.io/crates/block/block-0.1.6.crate",
+      "source_archive_sha256": "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a",
+      "sha256": "24df2f33b48c9e756a4f864f882c1ab07a159b6c2b790f45af2e8162499b6719",
+      "bytes": 531,
+      "kind": "published_source_or_attribution"
+    },
+    {
+      "path": "texts/crates.io/README.md",
+      "upstream_path": "README.md",
+      "url": "https://static.crates.io/crates/block/block-0.1.6.crate#README.md",
+      "source_archive": "https://static.crates.io/crates/block/block-0.1.6.crate",
+      "source_archive_sha256": "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a",
+      "sha256": "01c56329fa14f48ea1c9c7986c3660c41beeff2477f61c2d36bd8e666b9fc562",
+      "bytes": 1264,
+      "kind": "published_source_or_attribution"
+    },
+    {
+      "path": "texts/canonical/LICENSE-MIT.txt",
+      "source": "https://raw.githubusercontent.com/spdx/license-list-data/31846481de7ea17d92f2f46fad76abe58b2e9bb0/text/MIT.txt",
+      "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+      "bytes": 1078,
+      "kind": "canonical_license_text",
+      "license_id": "MIT",
+      "note": "SPDX License List canonical MIT text; canonical terms only, not represented as an upstream copyright notice."
+    }
+  ],
+  "status": "recovered",
+  "reason": "Exact published crates.io source archive verified against Cargo.lock checksum plus unmodified canonical license text. Canonical text is a reference, not the upstream copyright notice; no copyright holder/year was synthesized.",
+  "reference": "0.1.6",
+  "reference_basis": "exact crates.io published source archive verified against Cargo.lock checksum",
+  "archive_url": "https://codeload.github.com/SSheldon/rust-block/tar.gz/0.1.6",
+  "other_reference_attempts": [
+    "v0.1.6: HTTPError: HTTP Error 404: Not Found"
+  ],
+  "head_repository": "https://github.com/SSheldon/rust-block",
+  "head_sha": "642ea4a4a5853a21b55b05c34832a5f1bb1af61c",
+  "head_archive_url": "https://codeload.github.com/SSheldon/rust-block/tar.gz/642ea4a4a5853a21b55b05c34832a5f1bb1af61c",
+  "head_manifest_matches": [
+    [
+      "Cargo.toml",
+      "0.1.6",
+      "MIT"
+    ]
+  ],
+  "head_license_match": true,
+  "head_license_match_manifests": [
+    [
+      "Cargo.toml",
+      "0.1.6",
+      "MIT"
+    ]
+  ],
+  "crate_archive_url": "https://static.crates.io/crates/block/block-0.1.6.crate",
+  "crate_archive_sha256": "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a",
+  "cargo_lock_sha256": "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a",
+  "copyright_notice_missing": true,
+  "canonical_license_source": "SPDX identifiers in Cargo metadata; canonical license texts from pinned official sources",
+  "canonical_source_revision": "31846481de7ea17d92f2f46fad76abe58b2e9bb0",
+  "copyright_notice_evidence": []
+}

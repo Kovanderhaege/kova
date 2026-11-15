@@ -1,0 +1,49 @@
+{
+  "name": "malloc_buf",
+  "version": "0.0.6",
+  "license_expression": "MIT",
+  "repository": "https://github.com/SSheldon/malloc_buf",
+  "revision": null,
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/LICENSE",
+      "upstream_path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/SSheldon/malloc_buf/d9a3e539642bd90e07df458d226b19cdfa606863/LICENSE",
+      "archive_url": "https://codeload.github.com/SSheldon/malloc_buf/tar.gz/d9a3e539642bd90e07df458d226b19cdfa606863",
+      "sha256": "aced7b57e474a63edb5a724954222bf7659c01ceef0e648a03af799582991db7",
+      "bytes": 1071,
+      "kind": "license_or_notice"
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official current upstream archive checked; license expression matches, and upstream license/notice/attribution files have provenance and hashes.",
+  "reference": "d9a3e539642bd90e07df458d226b19cdfa606863",
+  "reference_basis": "official upstream current HEAD; package version differs or historical VCS ref unavailable, but upstream package manifest has the same license expression",
+  "archive_url": "https://codeload.github.com/SSheldon/malloc_buf/tar.gz/0.0.6",
+  "other_reference_attempts": [
+    "v0.0.6: HTTPError: HTTP Error 404: Not Found"
+  ],
+  "head_repository": "https://github.com/SSheldon/malloc_buf",
+  "head_sha": "d9a3e539642bd90e07df458d226b19cdfa606863",
+  "head_archive_url": "https://codeload.github.com/SSheldon/malloc_buf/tar.gz/d9a3e539642bd90e07df458d226b19cdfa606863",
+  "head_manifest_matches": [
+    [
+      "Cargo.toml",
+      "1.0.0",
+      "MIT"
+    ]
+  ],
+  "head_license_match": true,
+  "head_license_match_manifests": [
+    [
+      "Cargo.toml",
+      "1.0.0",
+      "MIT"
+    ]
+  ],
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE"
+  ]
+}

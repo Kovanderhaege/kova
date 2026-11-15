@@ -1,0 +1,33 @@
+{
+  "name": "lyon",
+  "version": "1.0.19",
+  "license_expression": "MIT OR Apache-2.0",
+  "repository": "https://github.com/nical/lyon",
+  "revision": "56219c95c658d4f39de7b190d98e57d5773ba241",
+  "path_in_vcs": "crates/lyon",
+  "files": [
+    {
+      "path": "texts/LICENSE-MIT",
+      "upstream_path": "LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/nical/lyon/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-MIT",
+      "sha256": "80f275e90d799911ed3830a7f242a2ef5a4ade2092fe0aa07bfb2d2cf2f2b95e",
+      "bytes": 1080
+    },
+    {
+      "path": "texts/LICENSE-APACHE",
+      "upstream_path": "LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/nical/lyon/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-APACHE",
+      "sha256": "216486f29671a4262efe32af6d84a75bef398127f8c5f369b5c8305983887a06",
+      "bytes": 554
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official repository licensing files downloaded directly from raw source at exact Cargo revision; package and ancestor paths checked.",
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE-MIT",
+    "texts/LICENSE-APACHE"
+  ],
+  "reference_basis": "exact .cargo_vcs_info.json git.sha1",
+  "reference": "56219c95c658d4f39de7b190d98e57d5773ba241"
+}

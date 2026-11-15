@@ -1,0 +1,46 @@
+{
+  "name": "simd_helpers",
+  "version": "0.1.0",
+  "license_expression": "MIT",
+  "repository": "https://github.com/lu-zero/simd_helpers",
+  "revision": "ca1a2f84aa386d758e98f8a609d990263932fb85",
+  "path_in_vcs": "",
+  "files": [
+    {
+      "path": "texts/LICENSE",
+      "upstream_path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/lu-zero/simd_helpers/82040194cd05affb060bf94d6f19f82a771d07fb/LICENSE",
+      "archive_url": "https://codeload.github.com/lu-zero/simd_helpers/tar.gz/82040194cd05affb060bf94d6f19f82a771d07fb",
+      "sha256": "d69f24ad84ec2ade64c0b68bdb31b41170e997b158370342056918329cc9af1e",
+      "bytes": 1069,
+      "kind": "license_or_notice"
+    }
+  ],
+  "status": "recovered",
+  "reason": "Official current upstream archive checked; license expression matches, and upstream license/notice/attribution files have provenance and hashes.",
+  "reference": "82040194cd05affb060bf94d6f19f82a771d07fb",
+  "reference_basis": "official upstream current HEAD; package version differs or historical VCS ref unavailable, but upstream package manifest has the same license expression",
+  "archive_url": "https://codeload.github.com/lu-zero/simd_helpers/tar.gz/ca1a2f84aa386d758e98f8a609d990263932fb85",
+  "head_repository": "https://github.com/lu-zero/simd_helpers",
+  "head_sha": "82040194cd05affb060bf94d6f19f82a771d07fb",
+  "head_archive_url": "https://codeload.github.com/lu-zero/simd_helpers/tar.gz/82040194cd05affb060bf94d6f19f82a771d07fb",
+  "head_manifest_matches": [
+    [
+      "Cargo.toml",
+      "0.1.0",
+      "MIT"
+    ]
+  ],
+  "head_license_match": true,
+  "head_license_match_manifests": [
+    [
+      "Cargo.toml",
+      "0.1.0",
+      "MIT"
+    ]
+  ],
+  "copyright_notice_missing": false,
+  "copyright_notice_evidence": [
+    "texts/LICENSE"
+  ]
+}
