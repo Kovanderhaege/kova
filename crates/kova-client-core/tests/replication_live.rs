@@ -159,6 +159,153 @@ fn bilateral_policy_syncs_mls_events_across_two_origins() {
         bob_history.matches("· reçu par le serveur").count(),
         "both local caches must converge on the same number of events"
     );
+
+    // Leave one acknowledged event on A only so retrying on B must replay the
+    // missing causal ancestor before the durable pending event.
+    alice_store
+        .send(&a, &alice_a, &alice, &conversation, "primary-only-parent")
+        .unwrap();
+
+    // Coordinate a real primary outage with the Python federation harness.
+    let handshake = std::env::var("KOVA_REPLICATION_FAILOVER_HANDSHAKE").unwrap();
+    let handshake = std::path::PathBuf::from(handshake);
+    let pending = alice_store
+        .prepare(&alice, &conversation, "retry-on-approved-replica")
+        .unwrap();
+    drop(alice_store);
+    let mut alice_store = DmStore::open(&alice_path, alice_key.expose_secret(), &alice).unwrap();
+    std::fs::write(handshake.join("ready"), b"").unwrap();
+    wait_for_file(&handshake.join("stopped"));
+    let alice_a_session = serde_json::to_value(&alice_a).unwrap();
+    let alice_b_session = serde_json::to_value(&alice_b).unwrap();
+    let selected = alice_store
+        .retry_available(&origin_a, &conversation, |origin| {
+            let session = if origin == origin_a {
+                &alice_a_session
+            } else if origin == origin_b {
+                &alice_b_session
+            } else {
+                return Err("unexpected replica".into());
+            };
+            Ok(serde_json::from_value(session.clone()).unwrap())
+        })
+        .unwrap();
+    assert_eq!(selected, origin_b);
+    assert!(
+        alice_store
+            .render(Some(&conversation))
+            .unwrap()
+            .contains("retry-on-approved-replica")
+    );
+    std::fs::write(handshake.join("restart"), b"").unwrap();
+    wait_for_file(&handshake.join("resumed"));
+    let selected = alice_store
+        .retry_available(&origin_a, &conversation, |origin| {
+            let session = if origin == origin_a {
+                &alice_a_session
+            } else if origin == origin_b {
+                &alice_b_session
+            } else {
+                return Err("unexpected replica".into());
+            };
+            Ok(serde_json::from_value(session.clone()).unwrap())
+        })
+        .unwrap();
+    assert_eq!(selected, origin_a);
+    let final_history = alice_store.render(Some(&conversation)).unwrap();
+    assert_eq!(
+        final_history.matches("retry-on-approved-replica").count(),
+        1
+    );
+    assert!(!final_history.contains("en attente"));
+    let page: kova_protocol::dm::DmEventPage = reqwest::blocking::Client::new()
+        .get(format!(
+            "{origin_a}/api/v1/dm/conversations/{conversation}/events"
+        ))
+        .bearer_auth(alice_a_session["token"].as_str().unwrap())
+        .send()
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .unwrap();
+    assert_eq!(
+        page.items
+            .iter()
+            .filter(|item| item.event.event_id == pending)
+            .count(),
+        1
+    );
+    bob_store.sync(&a, &bob_a, &conversation).unwrap();
+    let bob_after_failover = bob_store.render(Some(&conversation)).unwrap();
+    assert!(bob_after_failover.contains("primary-only-parent"));
+    assert!(bob_after_failover.contains("retry-on-approved-replica"));
+
+    for invalid_session in [&alice_b_session, &serde_json::to_value(&bob_a).unwrap()] {
+        let mut requested = Vec::new();
+        assert!(
+            alice_store
+                .sync_available(&origin_a, &conversation, |origin| {
+                    requested.push(origin.to_owned());
+                    Ok(serde_json::from_value(invalid_session.clone()).unwrap())
+                })
+                .is_err()
+        );
+        assert_eq!(requested, vec![origin_a.clone()]);
+    }
+
+    // Only a missing/expired credential permits trying another approved origin.
+    let selected = alice_store
+        .sync_available(&origin_a, &conversation, |origin| {
+            if origin == origin_a {
+                Err(kova_client_core::SessionUnavailable.into())
+            } else {
+                assert_eq!(origin, origin_b);
+                Ok(serde_json::from_value(alice_b_session.clone()).unwrap())
+            }
+        })
+        .unwrap();
+    assert_eq!(selected, origin_b);
+    let mut expired = alice_a_session.clone();
+    expired["expires_at"] = serde_json::json!(0);
+    assert_eq!(
+        alice_store
+            .sync_available(&origin_a, &conversation, |origin| {
+                Ok(serde_json::from_value(if origin == origin_a {
+                    expired.clone()
+                } else {
+                    assert_eq!(origin, origin_b);
+                    alice_b_session.clone()
+                })
+                .unwrap())
+            })
+            .unwrap(),
+        origin_b
+    );
+
+    // An authorization denial must stop selection rather than bypass it on B.
+    let mut denied = alice_a_session.clone();
+    denied["token"] = serde_json::json!("00".repeat(32));
+    let mut requested = Vec::new();
+    assert!(
+        alice_store
+            .sync_available(&origin_a, &conversation, |origin| {
+                requested.push(origin.to_owned());
+                Ok(serde_json::from_value(denied.clone()).unwrap())
+            })
+            .is_err()
+    );
+    assert_eq!(requested, vec![origin_a.clone()]);
+    let mut requested = false;
+    assert!(
+        alice_store
+            .sync_available("https://unapproved.example", &conversation, |_| {
+                requested = true;
+                Err(kova_client_core::SessionUnavailable.into())
+            })
+            .is_err()
+    );
+    assert!(!requested);
     drop(alice_store);
     drop(bob_store);
     for path in [&alice_path, &bob_path] {
@@ -166,4 +313,16 @@ fn bilateral_policy_syncs_mls_events_across_two_origins() {
         std::fs::remove_file(path.with_extension("lock")).unwrap();
     }
     std::fs::remove_dir(directory).unwrap();
+}
+
+fn wait_for_file(path: &std::path::Path) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(45);
+    while !path.exists() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "timed out waiting for {}",
+            path.display()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
 }

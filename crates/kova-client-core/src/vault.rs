@@ -129,7 +129,16 @@ impl Vault {
         self.write(&Self::session_key(&session.origin)?, session)
     }
     pub fn session(&self, origin: &str) -> Result<Session> {
-        self.read(&Self::session_key(origin)?)
+        self.read(&Self::session_key(origin)?).map_err(|error| {
+            if matches!(
+                error.downcast_ref::<keyring::Error>(),
+                Some(keyring::Error::NoEntry)
+            ) {
+                Box::new(SessionUnavailable) as Box<dyn std::error::Error + Send + Sync>
+            } else {
+                error
+            }
+        })
     }
     pub fn forget_session(&self, origin: &str) -> Result<()> {
         match self.entry(&Self::session_key(origin)?)?.delete_credential() {
@@ -216,9 +225,21 @@ mod tests {
         };
         vault.save_session(&session).unwrap();
         assert_eq!(vault.session(&session.origin).unwrap().token, session.token);
-        assert!(vault.session("http://localhost:8002").is_err());
+        assert!(
+            vault
+                .session("http://localhost:8002")
+                .err()
+                .unwrap()
+                .is::<SessionUnavailable>()
+        );
         vault.forget_session(&session.origin).unwrap();
-        assert!(vault.session(&session.origin).is_err());
+        assert!(
+            vault
+                .session(&session.origin)
+                .err()
+                .unwrap()
+                .is::<SessionUnavailable>()
+        );
     }
 
     #[test]

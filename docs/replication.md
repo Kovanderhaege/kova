@@ -1,6 +1,16 @@
-# Réplication MP — jalon 6
+# Réplication et bascule MP — jalons 6 et 7
 
-La réplication concerne les enveloppes MLS opaques d'une conversation 1:1. Les clés privées d'identité et MLS restent sur les clients. Les communautés ne donnent aucun droit sur les MP. La synchronisation est déclenchée explicitement ; la bascule automatique et l'ordonnancement de fond relèvent du jalon 7.
+La réplication concerne les enveloppes MLS opaques d'une conversation 1:1. Les clés privées d'identité et MLS restent sur les clients. Les communautés ne donnent aucun droit sur les MP. Le client peut synchroniser explicitement ou en arrière-plan la conversation sélectionnée et basculer vers un réplica approuvé si l'origine préférée est indisponible.
+
+## Sélection automatique — jalon 7
+
+La liste des candidats provient uniquement de la dernière politique bilatérale vérifiée et conservée dans le cache chiffré. Sans politique, seule l'origine du manifeste est éligible. L'origine préférée doit appartenir à cette liste ; elle est essayée en premier, puis les autres origines dans un ordre déterministe. Chaque tentative utilise sa propre session de la même identité, vérifie le descripteur de fédération contre la clé approuvée, puis actualise la chaîne de politiques. Aucune découverte ni connexion automatique à une nouvelle instance n'est effectuée.
+
+Une connexion indisponible, une expiration réseau ou une erreur HTTP 5xx permet d'essayer le candidat suivant. Une session locale absente ou expirée est ignorée ; une session d'une autre origine ou identité, un refus HTTP, une clé inattendue, des données invalides ou un conflit restent bloquants. Une partition peut toujours retarder la connaissance d'un retrait ; la bascule ne crée pas de connaissance globale instantanée.
+
+Le réessai demande au réplica sélectionné de rattraper les autres réplicas approuvés disponibles. Les enveloppes déjà préparées sont réutilisées sans nouvelle opération MLS. Les ancêtres signés par l'appareil local peuvent être renvoyés dans l'ordre causal pour combler le retard du réplica ; le client ne peut pas publier à la place du correspondant. Si un ancêtre du correspondant manque et que sa source est indisponible, l'envoi reste en attente jusqu'à reprise de la réplication. Le réplica doit déjà posséder le manifeste et sa politique avant la panne de l'origine initiale.
+
+Le desktop déclenche la reprise uniquement pour la conversation sélectionnée dans le panneau MP, avec un délai de 30 secondes après succès, doublé après échec jusqu'à cinq minutes. Les opérations sont sérialisées et exécutées hors thread UI. La navigation, le mode hors ligne et l'examen d'une politique suspendent les nouvelles tentatives. Une requête déjà commencée peut finir ; son résultat n'est affiché que si la sélection correspond toujours. Il n'y a pas de service permanent après fermeture du desktop, ni de promesse de délai maximal de livraison.
 
 ## Consentement
 

@@ -1,4 +1,32 @@
 use super::*;
+
+/// A credential provider has no saved session for the requested origin.
+/// Invalid credentials and storage errors must be reported separately.
+#[derive(Debug)]
+pub struct SessionUnavailable;
+
+impl std::fmt::Display for SessionUnavailable {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("Session absente : connectez cet appareil à l'instance.")
+    }
+}
+
+impl std::error::Error for SessionUnavailable {}
+
+#[derive(Debug)]
+pub(crate) struct HttpResponseError {
+    pub(crate) status: reqwest::StatusCode,
+    message: String,
+}
+
+impl std::fmt::Display for HttpResponseError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}: {}", self.status, self.message)
+    }
+}
+
+impl std::error::Error for HttpResponseError {}
+
 pub fn validate_origin(origin: &str) -> Result<Url> {
     let url = Url::parse(origin)?;
     let local = match url.host() {
@@ -54,14 +82,16 @@ impl Instance {
         if status == reqwest::StatusCode::NO_CONTENT {
             return Ok(Value::Null);
         }
-        let result: Value = response.json()?;
         if !status.is_success() {
-            let message = result["error"]["message"]
-                .as_str()
-                .unwrap_or("Community request failed");
-            return Err(format!("{status}: {message}").into());
+            let result = response.json::<Value>().ok();
+            let message = result
+                .as_ref()
+                .and_then(|value| value["error"]["message"].as_str())
+                .unwrap_or("Instance request failed")
+                .to_owned();
+            return Err(HttpResponseError { status, message }.into());
         }
-        Ok(result)
+        Ok(response.json()?)
     }
 
     pub fn new(origin: &str) -> Result<Self> {
@@ -171,5 +201,47 @@ impl Instance {
             .send()?
             .error_for_status()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+
+    #[test]
+    fn http_errors_preserve_status_even_without_json() {
+        for (status, body) in [
+            (503, "temporarily unavailable"),
+            (403, r#"{"error":{"message":"access denied"}}"#),
+        ] {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let origin = format!("http://{}", listener.local_addr().unwrap());
+            let server = std::thread::spawn(move || {
+                let (mut socket, _) = listener.accept().unwrap();
+                socket
+                    .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                    .unwrap();
+                let mut request = [0; 4096];
+                socket.read(&mut request).unwrap();
+                write!(socket, "HTTP/1.1 {status} Error\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            });
+            let instance = Instance::new(&origin).unwrap();
+            let session = Session {
+                origin,
+                token: "test-token".into(),
+                expires_at: Utc::now().timestamp() + 60,
+                profile: Value::Null,
+            };
+            let error = instance
+                .community_request(&session, reqwest::Method::GET, "/test", None)
+                .unwrap_err();
+            let response = error.downcast_ref::<HttpResponseError>().unwrap();
+            assert_eq!(response.status.as_u16(), status);
+            if status == 403 {
+                assert!(response.to_string().contains("access denied"));
+            }
+            server.join().unwrap();
+        }
     }
 }

@@ -169,7 +169,7 @@ mod transport;
 #[cfg(windows)]
 pub mod vault;
 pub use cache::Cache;
-pub use transport::{Instance, Session, validate_origin};
+pub use transport::{Instance, Session, SessionUnavailable, validate_origin};
 
 #[cfg(test)]
 mod tests {

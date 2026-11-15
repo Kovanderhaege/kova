@@ -10,7 +10,7 @@ Les messages sont chiffrés dans le client avec OpenMLS. L'instance peut stocker
 
 ## Limites du jalon
 
-Le jalon 5 prend en charge une conversation 1:1 établie avec un appareil par identité. L'ajout d'un appareil n'importe pas automatiquement l'historique. Le jalon 6 ajoute le consentement et la réplication explicite décrits ci-dessous ; la bascule automatique lorsque l'instance est hors ligne relève du jalon 7. Les clés privées de session dépendent du coffre du profil local : la sauvegarde de la racine d'identité ne sauvegarde pas automatiquement l'état MLS. Perdre ce profil peut rendre la conversation irrécupérable. Le protocole de récupération de conversation n'est pas livré.
+Le prototype prend en charge une conversation 1:1 établie avec un appareil par identité. L'ajout d'un appareil n'importe pas automatiquement l'historique. Le jalon 6 ajoute le consentement et la réplication décrits ci-dessous ; le jalon 7 ajoute la bascule automatique et la reprise de fond. Les clés privées de session dépendent du coffre du profil local : la sauvegarde de la racine d'identité ne sauvegarde pas automatiquement l'état MLS. Perdre ce profil peut rendre la conversation irrécupérable. Le protocole de récupération de conversation n'est pas livré.
 
 La vérification visuelle de l'interface n'atteste pas à elle seule les garanties cryptographiques. Les limites d'audit et de persistance OpenMLS figurent dans [la décision E2EE](decisions/e2ee.md) ; les contrats wire et résultats de test sont consignés dans [le bilan du jalon](migration-plan.md).
 
@@ -29,3 +29,11 @@ Les exploitants configurent d'abord les identités de fédération et les clés 
 5. Pour utiliser manuellement B, sélectionner son origine et une session propre à B avec la même identité et le même appareil. Le cache garde un curseur distinct pour chaque origine et un seul historique par conversation.
 
 Retirer un réplica demande également une nouvelle politique approuvée par les deux participants. La nouvelle politique doit être transmise aux instances concernées ; une instance isolée ne peut pas apprendre instantanément son retrait. Le retrait n'efface pas les copies déjà conservées. Les conflits de politique ne sont jamais résolus par union automatique des autorisations.
+
+## Bascule et reprise automatique — jalon 7
+
+Connectez auparavant le même appareil à chaque réplica souhaité, puis synchronisez la conversation et sa politique sur ces instances. Gardez l'origine préférée et l'identifiant de conversation dans le panneau MP. **Envoyer**, **Réessayer** et **Synchroniser** sélectionnent automatiquement un réplica autorisé si cette origine est indisponible ; le résultat indique l'origine utilisée. Une session absente ou expirée nécessite une reconnexion dans **Connexion**. Aucun mot de passe ni jeton n'est partagé entre instances.
+
+Le panneau tente aussi de synchroniser et reprendre les envois toutes les 30 secondes, avec un délai croissant jusqu'à cinq minutes après échec. **Hors ligne** et les actions de consultation/approbation des politiques mettent ce travail en pause ; **Synchroniser**, **Envoyer** ou **Réessayer** le réactivent. Changer de panneau ou fermer la fenêtre arrête les nouvelles tentatives. Les textes saisis ne sont jamais envoyés automatiquement : seuls les événements déjà préparés par **Envoyer** sont repris.
+
+Après une panne, ne recréez pas le message : la file locale conserve le même événement chiffré, y compris après redémarrage. Si le réplica manque d'un message antérieur du correspondant, la reprise peut attendre le retour d'une source qui le possède. Les refus d'accès et conflits de sécurité restent affichés et ne sont pas contournés par une bascule. Les détails et limites figurent dans [le contrat de réplication](replication.md#sélection-automatique--jalon-7).

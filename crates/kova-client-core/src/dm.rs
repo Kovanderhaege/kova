@@ -1,5 +1,6 @@
 //! Device-bound private conversations. Network requests contain only signed public
 //! credentials and MLS ciphertext. All durable client state is an age-encrypted blob.
+mod failover;
 mod network;
 mod storage;
 #[cfg(test)]

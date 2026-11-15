@@ -55,6 +55,23 @@ fn rejected_ciphertext_does_not_consume_ratchet_or_cursor() {
         );
         store.save(state).unwrap();
     }
+    assert!(
+        a.sync_available("https://b.example", &id, |_| {
+            panic!("unapproved origin must not be contacted")
+        })
+        .is_err()
+    );
+    assert!(
+        a.sync_available("https://a.example", &id, |origin| {
+            Ok(Session {
+                origin: origin.into(),
+                token: "expired-token".into(),
+                expires_at: 0,
+                profile: serde_json::json!({"global_identity_id": alice.global_id().unwrap()}),
+            })
+        })
+        .is_err()
+    );
     let event_id = a.prepare(&alice, &id, "secret-unit-message").unwrap();
     let event = a.state.conversations[&id].events[&event_id].clone();
     let page = |event| DmEventPage {
@@ -121,4 +138,130 @@ fn rejected_ciphertext_does_not_consume_ratchet_or_cursor() {
         std::fs::remove_file(&path).unwrap();
         std::fs::remove_file(path.with_extension("lock")).unwrap();
     }
+}
+
+#[test]
+fn lost_creation_ack_retries_same_manifest_after_restart() {
+    use std::io::{BufRead, Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let alice = Identity::generate().unwrap();
+    let bob = Identity::generate().unwrap();
+    let path = std::env::temp_dir().join(format!("kova-creation-{}.sqlite", uuid::Uuid::new_v4()));
+    let key = age::x25519::Identity::generate().to_string();
+    let mut store = DmStore::open(&path, key.expose_secret(), &alice).unwrap();
+    let mut crypto = CryptoClient::restore_state(&store.state.crypto).unwrap();
+    let peer_crypto =
+        CryptoClient::new(&bob.global_id().unwrap(), &bob.device_id().unwrap()).unwrap();
+    let creator = signed_bundle(&alice, crypto.key_package().unwrap()).unwrap();
+    let recipient = signed_bundle(&bob, peer_crypto.key_package().unwrap()).unwrap();
+    let id = uuid::Uuid::new_v4().to_string();
+    let welcome = crypto
+        .create_conversation(&id, &hex::decode(&recipient.key_package).unwrap())
+        .unwrap();
+    let mut manifest = ConversationManifest {
+        conversation_id: id.clone(),
+        origin: origin.clone(),
+        creator,
+        recipient,
+        welcome: hex::encode(welcome),
+        signature: String::new(),
+    };
+    manifest.signature = sign(&alice, &manifest.canonical()).unwrap();
+    let expected = serde_json::to_value(&manifest).unwrap();
+    let mut state = store.state.clone();
+    state.crypto = crypto.export_state().unwrap();
+    state.conversations.insert(
+        id.clone(),
+        Conversation {
+            manifest,
+            cursor: 0,
+            source_cursors: BTreeMap::new(),
+            active_policy: None,
+            pending_creation: true,
+            events: BTreeMap::new(),
+            messages: BTreeMap::new(),
+            pending: Vec::new(),
+        },
+    );
+    store.save(state).unwrap();
+    let crypto_before = store.state.crypto.clone();
+    let request_id = id.clone();
+    let server = std::thread::spawn(move || {
+        let mut creations = Vec::new();
+        // First creation commits, but its response is lost. The retry returns
+        // that same manifest; no history GET is valid until creation is confirmed.
+        for attempt in 0..4 {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                .unwrap();
+            let mut reader = std::io::BufReader::new(&mut socket);
+            let mut request = String::new();
+            reader.read_line(&mut request).unwrap();
+            let mut length = 0;
+            loop {
+                let mut header = String::new();
+                reader.read_line(&mut header).unwrap();
+                if header == "\r\n" {
+                    break;
+                }
+                if let Some(value) = header.to_ascii_lowercase().strip_prefix("content-length:") {
+                    length = value.trim().parse::<usize>().unwrap();
+                }
+            }
+            let mut body = vec![0; length];
+            reader.read_exact(&mut body).unwrap();
+            drop(reader);
+            if attempt % 2 == 0 {
+                assert!(request.starts_with(&format!(
+                    "GET /api/v1/dm/conversations/{request_id}/replicas/history "
+                )));
+                let body = r#"{"error":{"message":"not found"}}"#;
+                write!(socket, "HTTP/1.1 404 Not Found\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            } else {
+                assert!(request.starts_with("POST /api/v1/dm/conversations "));
+                let received: serde_json::Value = serde_json::from_slice(&body).unwrap();
+                assert_eq!(received, expected);
+                creations.push(received);
+                if attempt == 3 {
+                    let body = expected.to_string();
+                    write!(
+                        socket,
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    )
+                    .unwrap();
+                }
+            }
+        }
+        assert_eq!(creations.len(), 2);
+        assert_eq!(creations[0], creations[1]);
+    });
+    let session = || Session {
+        origin: origin.clone(),
+        token: "test-token".into(),
+        expires_at: chrono::Utc::now().timestamp() + 60,
+        profile: serde_json::json!({"global_identity_id": alice.global_id().unwrap()}),
+    };
+    assert!(
+        store
+            .retry_available(&origin, &id, |_| Ok(session()))
+            .is_err()
+    );
+    assert!(store.state.conversations[&id].pending_creation);
+    drop(store);
+    let mut store = DmStore::open(&path, key.expose_secret(), &alice).unwrap();
+    assert_eq!(
+        store
+            .retry_available(&origin, &id, |_| Ok(session()))
+            .unwrap(),
+        origin
+    );
+    assert!(!store.state.conversations[&id].pending_creation);
+    assert_eq!(store.state.crypto, crypto_before);
+    server.join().unwrap();
+    drop(store);
+    std::fs::remove_file(&path).unwrap();
+    std::fs::remove_file(path.with_extension("lock")).unwrap();
 }

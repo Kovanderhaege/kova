@@ -150,7 +150,7 @@ impl Page {
                 "Seul le propriétaire change les rôles. Un modérateur peut exclure un membre simple. L'exclusion est définitive pour cette communauté, même avec une nouvelle invitation. Vérifiez l'identifiant avant de cliquer."
             }
             Self::DirectMessages => {
-                "Vérifiez l'identité et l'empreinte de l'appareil par un canal indépendant avant toute création ou acceptation. Pour la réplication, préparez une politique, consultez les origines et clés, puis approuvez séparément. Les deux participants doivent approuver avant toute synchronisation."
+                "Vérifiez l'identité et l'empreinte de l'appareil par un canal indépendant avant toute création ou acceptation. La conversation sélectionnée est synchronisée automatiquement toutes les 30 secondes et les envois en attente sont réessayés sur une instance approuvée disponible. Hors ligne ou pendant la préparation, l'examen et l'approbation d'une politique, le travail de fond est suspendu ; utilisez Synchroniser, Envoyer ou Réessayer pour le reprendre. Pour la réplication, préparez une politique, consultez les origines et clés, puis approuvez séparément. Les deux participants doivent approuver avant toute synchronisation."
             }
             Self::Identity => {
                 "La clé racine est protégée par Windows. Créez une sauvegarde : sa perte sans sauvegarde rend l'identité irrécupérable."
@@ -184,6 +184,7 @@ struct IdentityWindow {
     operation_status: String,
     subscription_scope: Option<(String, String, String)>,
     busy: bool,
+    dm_background_paused: bool,
     subscription: Option<crate::chat_service::Subscription>,
     subscription_generation: u64,
 }
@@ -202,11 +203,112 @@ impl IdentityWindow {
             .collect();
         self.status.clear();
         self.operation_status.clear();
+        self.dm_background_paused = false;
+        if page == Page::DirectMessages {
+            self.start_dm_background_sync(cx);
+        }
         cx.notify();
+    }
+    fn start_dm_background_sync(&self, cx: &mut Context<Self>) {
+        let generation = self.subscription_generation;
+        cx.spawn(async move |entity, cx| {
+            let mut delay = std::time::Duration::from_secs(30);
+            loop {
+                Timer::after(delay).await;
+                let request = entity
+                    .update(cx, |this, cx| {
+                        if this.subscription_generation != generation
+                            || this.page != Page::DirectMessages
+                        {
+                            return None;
+                        }
+                        if this.busy || this.dm_background_paused {
+                            return Some(None);
+                        }
+                        let origin = this.fields[0].read(cx).content.to_string();
+                        let id = this.fields[3].read(cx).content.to_string();
+                        if origin.is_empty() || id.is_empty() {
+                            return Some(None);
+                        }
+                        this.busy = true;
+                        cx.notify();
+                        Some(Some((
+                            this.profile.read(cx).content.to_string(),
+                            origin,
+                            id,
+                        )))
+                    })
+                    .unwrap_or(None);
+                let (profile, origin, id) = match request {
+                    None => break,
+                    Some(None) => continue,
+                    Some(Some(request)) => request,
+                };
+                let expected_profile = profile.clone();
+                let expected_origin = origin.clone();
+                let expected_id = id.clone();
+                let work = cx.background_executor().spawn(async move {
+                    let vault = kova_client_core::vault::Vault::new(&profile)
+                        .map_err(|error| format!("Échec : {error}"))?;
+                    crate::dm_service::execute(
+                        &vault,
+                        &origin,
+                        crate::dm_service::Command::AutoSync { id },
+                    )
+                    .map_err(|error| format!("Échec : {error}"))
+                });
+                let result = work.await;
+                let succeeded = result.is_ok();
+                let keep_running = entity
+                    .update(cx, |this, cx| {
+                        this.busy = false;
+                        if this.subscription_generation != generation
+                            || this.page != Page::DirectMessages
+                        {
+                            return false;
+                        }
+                        if this.profile.read(cx).content.as_ref() != expected_profile
+                            || this.fields[0].read(cx).content.as_ref() != expected_origin
+                            || this.fields[3].read(cx).content.as_ref() != expected_id
+                            || this.dm_background_paused
+                        {
+                            return true;
+                        }
+                        match result {
+                            Ok(status) => {
+                                this.operation_status =
+                                    "Synchronisation automatique terminée.".into();
+                                this.status = status;
+                            }
+                            Err(error) => {
+                                this.operation_status =
+                                    format!("Synchronisation automatique en attente : {error}");
+                            }
+                        }
+                        cx.notify();
+                        true
+                    })
+                    .unwrap_or(false);
+                if !keep_running {
+                    break;
+                }
+                delay = if succeeded {
+                    std::time::Duration::from_secs(30)
+                } else {
+                    (delay * 2).min(std::time::Duration::from_secs(300))
+                };
+            }
+        })
+        .detach();
     }
     fn execute(&mut self, action: usize, cx: &mut Context<Self>) {
         if self.busy {
             return;
+        }
+        if self.page == Page::DirectMessages {
+            if let Some(paused) = dm_background_pause_after_action(action) {
+                self.dm_background_paused = paused;
+            }
         }
         if self.page == Page::Chat && action <= 1 {
             self.subscription = None;
@@ -442,6 +544,33 @@ impl IdentityWindow {
         .detach();
     }
 }
+
+fn dm_background_pause_after_action(action: usize) -> Option<bool> {
+    match action {
+        4..=6 => Some(false),
+        7..=10 | 12 => Some(true),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::dm_background_pause_after_action;
+
+    #[test]
+    fn offline_and_replica_review_pause_background_until_manual_sync() {
+        let mut paused = false;
+        for action in [7, 8, 9, 10, 12] {
+            paused = dm_background_pause_after_action(action).unwrap_or(paused);
+            assert!(paused, "action {action} should pause automatic sync");
+        }
+        for action in [4, 5, 6] {
+            paused = dm_background_pause_after_action(action).unwrap_or(paused);
+            assert!(!paused, "action {action} should resume automatic sync");
+        }
+    }
+}
+
 impl Render for IdentityWindow {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let pages = [
@@ -457,7 +586,8 @@ impl Render for IdentityWindow {
             (Page::Association, "Associer"),
             (Page::Revocation, "Révocation"),
         ];
-        div().size_full().flex().flex_col().gap_3().p_4().bg(rgb(0x111827)).text_color(rgb(0xe5e7eb))
+        div().id("identity-scroll").size_full().overflow_y_scroll().bg(rgb(0x111827)).child(
+        div().min_h_full().flex().flex_col().gap_3().p_4().text_color(rgb(0xe5e7eb))
             .child(div().text_xl().child("Kova — Identité et communautés"))
             .child("Profil local (default pour votre profil habituel ; nouveau nom pour restaurer ou associer)")
             .child(self.profile.clone())
@@ -472,9 +602,10 @@ impl Render for IdentityWindow {
                     .on_click(cx.listener(move |this,_,_,cx| this.execute(index,cx)))
             })))
             .child(self.operation_status.clone())
-            .child(div().id("result").flex_1().overflow_y_scroll().p_2().bg(rgb(0x1f2937)).child(self.status.clone()))
+            .child(div().id("result").min_h(px(200.)).flex_1().overflow_y_scroll().p_2().bg(rgb(0x1f2937)).child(self.status.clone()))
             .child(div().id("copy-result").cursor_pointer().child("Copier le résultat (une invitation est confidentielle)")
                 .on_click(cx.listener(|this,_,_,cx| cx.write_to_clipboard(ClipboardItem::new_string(this.status.clone())))))
+        )
     }
 }
 pub fn run() {
@@ -498,6 +629,7 @@ pub fn run() {
                     fields: Vec::new(),
                     status: "Créez une identité ou affichez celle du profil sélectionné.".into(),
                     busy: false,
+                    dm_background_paused: false,
                     operation_status: String::new(),
                     subscription_scope: None,
                     subscription: None,

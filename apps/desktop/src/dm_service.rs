@@ -16,6 +16,9 @@ pub enum Command {
     Sync {
         id: String,
     },
+    AutoSync {
+        id: String,
+    },
     Send {
         id: String,
         body: String,
@@ -64,10 +67,9 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
         ));
     }
     let instance = Instance::new(origin)?;
-    let session = vault.session(origin)?;
-
     match command {
         Command::Publish => {
+            let session = vault.session(origin)?;
             store.publish(&instance, &session, &identity)?;
             Ok(format!(
                 "Appareil publié pour {} · {}. Communiquez ces empreintes par un canal sûr.",
@@ -76,6 +78,7 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
             ))
         }
         Command::List => {
+            let session = vault.session(origin)?;
             let conversations = instance.dm_conversations(&session)?;
             let listing = conversations
                 .iter()
@@ -103,6 +106,7 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
             peer_identity,
             peer_device,
         } => {
+            let session = vault.session(origin)?;
             let id = store.create(&instance, &session, &identity, &peer_identity, &peer_device)?;
             Ok(format!(
                 "Conversation {id} créée et en attente d'acceptation. Vérifiez et transmettez son identifiant au correspondant."
@@ -113,6 +117,7 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
             peer_identity,
             peer_device,
         } => {
+            let session = vault.session(origin)?;
             store.accept(
                 &instance,
                 &session,
@@ -126,23 +131,45 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
             ))
         }
         Command::Sync { id } => {
-            store.sync(&instance, &session, &id)?;
-            store.render(Some(&id))
+            let selected =
+                store.sync_available(origin, &id, |candidate| vault.session(candidate))?;
+            Ok(format!(
+                "Synchronisation automatique via {selected}.\n{}",
+                store.render(Some(&id))?
+            ))
+        }
+        Command::AutoSync { id } => {
+            match store.retry_available(origin, &id, |candidate| vault.session(candidate)) {
+                Ok(selected) => Ok(format!(
+                    "Synchronisation de fond via {selected}.\n{}",
+                    store.render(Some(&id))?
+                )),
+                Err(error) => Err(error),
+            }
         }
         Command::Send { id, body } => {
-            if let Err(error) = store.send(&instance, &session, &identity, &id, &body) {
-                return Err(format!(
+            store.prepare(&identity, &id, &body)?;
+            let selected = store
+                .retry_available(origin, &id, |candidate| vault.session(candidate))
+                .map_err(|error| format!(
                     "Envoi non confirmé. Si un message figure en attente dans l'historique local, utilisez Réessayer. Détail : {error}"
-                ).into());
-            }
-            store.render(Some(&id))
+                ))?;
+            Ok(format!(
+                "Envoi transmis via {selected}.\n{}",
+                store.render(Some(&id))?
+            ))
         }
         Command::Retry { id } => {
-            store.retry(&instance, &session, &id)?;
-            store.render(Some(&id))
+            let selected =
+                store.retry_available(origin, &id, |candidate| vault.session(candidate))?;
+            Ok(format!(
+                "Envoi en attente transmis via {selected}.\n{}",
+                store.render(Some(&id))?
+            ))
         }
         Command::Offline { id } => store.render(Some(&id)),
         Command::ProposeReplica { id, peer_origin } => {
+            let session = vault.session(origin)?;
             let policy =
                 store.propose_replica(&instance, &session, &identity, &id, &peer_origin)?;
             Ok(render_policy(
@@ -151,6 +178,7 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
             ))
         }
         Command::RemoveReplica { id, peer_origin } => {
+            let session = vault.session(origin)?;
             let policy =
                 store.propose_replica_removal(&instance, &session, &identity, &id, &peer_origin)?;
             Ok(render_policy(
@@ -159,6 +187,7 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
             ))
         }
         Command::ReviewReplica { id } => {
+            let session = vault.session(origin)?;
             let policy = store.replica_proposal(&instance, &session, &id)?;
             Ok(render_policy(
                 &policy,
@@ -166,6 +195,7 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
             ))
         }
         Command::ApproveReplica { id } => {
+            let session = vault.session(origin)?;
             let policy = store.approve_replica_proposal(&instance, &session, &identity, &id)?;
             Ok(render_policy(
                 &policy,
@@ -173,6 +203,7 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
             ))
         }
         Command::SyncReplica { id, peer_origin } => {
+            let session = vault.session(origin)?;
             let (received, sent) = store.sync_replicas(&instance, &session, &id, &peer_origin)?;
             Ok(format!(
                 "Réplication terminée avec {peer_origin} : {received} événement(s) reçu(s), {sent} envoyé(s).\n{}",

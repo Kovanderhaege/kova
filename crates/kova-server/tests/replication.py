@@ -466,11 +466,64 @@ def main():
                               KOVA_REPLICATION_INVITE_ALICE_B=invites["ALICE_B"],
                               KOVA_REPLICATION_INVITE_BOB_A=invites["BOB_A"],
                               KOVA_REPLICATION_INVITE_BOB_B=invites["BOB_B"])
+            handshake = Path(temp.name) / "failover-handshake"
+            handshake.mkdir()
+            client_env["KOVA_REPLICATION_FAILOVER_HANDSHAKE"] = str(handshake)
             cargo = shutil.which("cargo") or str(Path.home() / ".cargo" / "bin" /
                                                   ("cargo.exe" if os.name == "nt" else "cargo"))
-            subprocess.run([cargo, "test", "-p", "kova-client-core", "--locked",
-                            "--test", "replication_live", "--", "--ignored", "--nocapture"],
-                           cwd=ROOT, env=client_env, check=True, timeout=600)
+            client_log = tempfile.TemporaryFile(mode="w+", encoding="utf-8")
+
+            def client_output():
+                client_log.seek(0)
+                return client_log.read()
+
+            client = subprocess.Popen(
+                [cargo, "test", "-p", "kova-client-core", "--locked", "--test",
+                 "replication_live", "--", "--ignored", "--nocapture"],
+                cwd=ROOT, env=client_env, stdout=client_log,
+                stderr=subprocess.STDOUT, text=True)
+            try:
+                deadline = time.monotonic() + 600
+                while not (handshake / "ready").exists():
+                    if client.poll() is not None:
+                        raise RuntimeError(f"Rust client exited before failover: {client_output()}")
+                    if time.monotonic() > deadline:
+                        raise TimeoutError("Rust client did not request primary outage")
+                    time.sleep(0.1)
+                primary, primary_log, _ = processes[0]
+                primary.terminate()
+                primary.wait(timeout=15)
+                primary_log.close()
+                (handshake / "stopped").write_text("ok", encoding="utf-8")
+                while not (handshake / "restart").exists():
+                    if client.poll() is not None:
+                        raise RuntimeError(f"Rust failover test failed: {client_output()}")
+                    if time.monotonic() > deadline:
+                        raise TimeoutError("Rust client did not request primary restart")
+                    time.sleep(0.1)
+                port = origins[0].rsplit(":", 1)[1]
+                env_a = dict(os.environ, PGHOST=db_host, PGPORT=db_port,
+                             PGDATABASE=db_names[0], PGUSER="kova", PGPASSWORD=password,
+                             KOVA_ORIGIN=a, KOVA_LISTEN=f"127.0.0.1:{port}",
+                             KOVA_FEDERATION_KEY_FILE=str(key_files[0]),
+                             KOVA_FEDERATION_PEERS=json.dumps(descriptors[1:]))
+                log_path = Path(temp.name) / "a-failover-restart.log"
+                log = log_path.open("w", encoding="utf-8")
+                primary = subprocess.Popen([str(binary)], cwd=ROOT, env=env_a,
+                                           stdout=log, stderr=subprocess.STDOUT)
+                processes[0] = (primary, log, log_path)
+                wait_health(a, primary)
+                (handshake / "resumed").write_text("ok", encoding="utf-8")
+                client.wait(timeout=120)
+                output = client_output()
+                print(output)
+                if client.returncode:
+                    raise RuntimeError(f"Rust failover test failed ({client.returncode}): {output}")
+            finally:
+                if client.poll() is None:
+                    client.terminate()
+                    client.wait(timeout=10)
+                client_log.close()
 
         # C is configured and reachable but absent from the bilateral policy.
         call(a, f"/dm/conversations/{manifest['conversation_id']}/replicas/sync", 403,

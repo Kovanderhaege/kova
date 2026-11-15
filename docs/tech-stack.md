@@ -1,5 +1,12 @@
 # Registre des décisions techniques
 
+## Bascule MP — décision du 10 novembre 2026
+
+- Stack inchangée : reqwest 0.12.28, GPUI 0.2.2, cache chiffré age/SQLite et sessions du coffre. La sélection appartient au cœur client ; le desktop fournit les sessions par origine. Aucun annuaire, nouvelle autorisation ou nouveau protocole cryptographique.
+- Candidats : uniquement la politique bilatérale signée conservée localement, sinon l'origine du manifeste. Vérifier le descripteur de fédération contre la clé approuvée et relire la chaîne de politiques avant les opérations. Les erreurs de transport et HTTP 5xx permettent un repli ; les refus d'accès, conflits, signatures et données invalides restent bloquants. Les erreurs HTTP conservent un statut typé même si un proxy renvoie une page non JSON.
+- Reprise : réutiliser les événements chiffrés déjà persistés, sans régénérer identifiant ni état MLS. L'ordonnancement est limité à la conversation sélectionnée dans le panneau MP, hors thread UI, sans opérations concurrentes et avec délai croissant après échec. La fermeture du panneau arrête les nouvelles tentatives ; ce n'est pas un service système permanent.
+- Références vérifiées le 2026-11-10 : [GPUI BackgroundExecutor::timer et spawn](https://docs.rs/gpui/0.2.2/gpui/struct.BackgroundExecutor.html). Les méthodes `reqwest::Error::{is_connect,is_timeout,status}` sont vérifiées dans le source officiel de reqwest 0.12.28 installé par Cargo (`src/error.rs`) ; la page docs.rs de cette version était inaccessible au navigateur. Le classement des erreurs et les intervalles de reprise sont des décisions Kova, pas une garantie de livraison des bibliothèques.
+
 ## Réplication MP — décision du 8 novembre 2026
 
 - Périmètre du jalon 6 : synchronisation explicite serveur à serveur entre origines configurées, sans annuaire ni bascule automatique (jalon 7). Réutilisation de ring 0.17.14, reqwest 0.12.28, SQLx 0.8.6 et PostgreSQL 17 ; aucun nouveau protocole de chiffrement du contenu.

@@ -84,7 +84,7 @@ impl Instance {
         ))
     }
 
-    fn replica_descriptor(origin: &str) -> Result<ReplicaDescriptor> {
+    pub(super) fn replica_descriptor(origin: &str) -> Result<ReplicaDescriptor> {
         crate::transport::validate_origin(origin)?;
         let response: serde_json::Value = reqwest::blocking::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
@@ -383,7 +383,7 @@ impl DmStore {
         Err("Synchronisation MP incomplète après 64 lots ; relancez-la pour reprendre.".into())
     }
 
-    fn check_session(&self, instance: &Instance, session: &Session) -> Result<()> {
+    pub(super) fn check_session(&self, instance: &Instance, session: &Session) -> Result<()> {
         instance.authorize(session)?;
         if session.profile["global_identity_id"] != self.state.identity {
             return Err("Session d'une autre identité".into());
@@ -391,7 +391,7 @@ impl DmStore {
         Ok(())
     }
 
-    fn check_replica_origin(
+    pub(super) fn check_replica_origin(
         &mut self,
         instance: &Instance,
         session: &Session,
@@ -721,7 +721,7 @@ impl DmStore {
     pub fn sync(&mut self, instance: &Instance, session: &Session, id: &str) -> Result<()> {
         self.check_session(instance, session)?;
         self.check_replica_origin(instance, session, id)?;
-        loop {
+        for _ in 0..64 {
             let cursor = self
                 .state
                 .conversations
@@ -740,10 +740,10 @@ impl DmStore {
             let count = page.items.len();
             self.merge_from(id, &instance.origin, page)?;
             if count < 100 {
-                break;
+                return Ok(());
             }
         }
-        Ok(())
+        Err("Synchronisation MP incomplète après 64 lots ; relancez-la pour reprendre.".into())
     }
 
     #[cfg(test)]
