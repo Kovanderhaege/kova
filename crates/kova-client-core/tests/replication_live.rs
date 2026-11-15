@@ -1,6 +1,6 @@
 //! Live client/server replication flow; invoked by the disposable federation harness.
 use age::secrecy::ExposeSecret;
-use kova_client_core::{Identity, Instance, dm::DmStore};
+use kova_client_core::{Identity, Instance, chat::PendingMessage, dm::DmStore};
 
 fn join(
     instance: &Instance,
@@ -57,6 +57,41 @@ fn bilateral_policy_syncs_mls_events_across_two_origins() {
 
     let mut alice_store = DmStore::open(&alice_path, alice_key.expose_secret(), &alice).unwrap();
     let mut bob_store = DmStore::open(&bob_path, bob_key.expose_secret(), &bob).unwrap();
+
+    let community_a = a.communities(&alice_a).unwrap()["items"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let communities_b = b.communities(&alice_b).unwrap();
+    assert!(
+        !communities_b["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|community| community["id"] == community_a)
+    );
+    assert!(b.channels(&alice_b, &community_a).is_err());
+    let channel_a = a.channels(&alice_a, &community_a).unwrap()["items"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    a.send_message(
+        &alice_a,
+        &channel_a,
+        &PendingMessage {
+            client_id: uuid::Uuid::new_v4().to_string(),
+            body: "alice-public-on-a".into(),
+        },
+    )
+    .unwrap();
+    let public_messages = a.messages(&bob_a, &channel_a, 0).unwrap();
+    assert!(
+        public_messages
+            .items
+            .iter()
+            .any(|message| message.body == "alice-public-on-a")
+    );
+
     bob_store.publish(&a, &bob_a, &bob).unwrap();
     let conversation = alice_store
         .create(

@@ -3,6 +3,13 @@
 __pycache__/
 *.kova-vault
 *.pk8
+*.dump
 
 /dist/
 /.venv/
+/.env
+/.env.*
+/deployment/.env
+/deployment/.env.*
+/deployment/secrets/
+/backups/

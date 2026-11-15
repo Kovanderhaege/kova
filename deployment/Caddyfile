@@ -1,0 +1,11 @@
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+{$KOVA_DOMAIN} {
+	request_body {
+		max_size 2MB
+	}
+	reverse_proxy api:8080
+}

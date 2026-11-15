@@ -1,16 +1,14 @@
 mod auth;
 mod chat;
 mod communities;
+mod config;
 mod dm;
 mod replication;
 
 use std::{env, error::Error, time::Duration};
 
 use axum::{Router, extract::State, http::StatusCode, routing::get};
-use sqlx::{
-    PgPool,
-    postgres::{PgConnectOptions, PgPoolOptions},
-};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::{net::TcpListener, signal, time::timeout};
 
 #[tokio::main]
@@ -24,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .acquire_timeout(Duration::from_secs(3))
-        .connect_with(PgConnectOptions::new())
+        .connect_with(config::postgres_connect_options()?)
         .await?;
     sqlx::migrate!().run(&pool).await?;
 

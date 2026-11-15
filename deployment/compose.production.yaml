@@ -1,0 +1,78 @@
+name: kova
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  proxy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    environment:
+      KOVA_DOMAIN: ${KOVA_DOMAIN:?Définir le domaine public sans schéma ni chemin}
+      ACME_EMAIL: ${ACME_EMAIL:?Définir le courriel de contact ACME}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    mem_limit: 256m
+    pids_limit: 128
+    logging: *logging
+  api:
+    build:
+      context: ..
+      dockerfile: crates/kova-server/Dockerfile
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGDATABASE: kova
+      PGUSER: kova
+      KOVA_DATABASE_PASSWORD_FILE: /run/secrets/database_password
+      KOVA_ORIGIN: https://${KOVA_DOMAIN:?Définir KOVA_DOMAIN}
+      KOVA_LISTEN: 0.0.0.0:8080
+    secrets:
+      - database_password
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    pids_limit: 128
+    logging: *logging
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kova
+      POSTGRES_USER: kova
+      POSTGRES_PASSWORD_FILE: /run/secrets/database_password
+    secrets:
+      - database_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U kova -d kova"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 1g
+    pids_limit: 256
+    logging: *logging
+
+secrets:
+  database_password:
+    file: ${KOVA_DATABASE_PASSWORD_HOST_FILE:?Définir le chemin du secret PostgreSQL}
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

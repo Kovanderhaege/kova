@@ -186,6 +186,33 @@ def wait_health(origin, process):
     raise RuntimeError(f"API did not become ready: {last}")
 
 
+class DatabaseInstance:
+    def __init__(self, name):
+        self.name = name
+        self.project = f"kova-replica-{name}-{uuid4().hex[:12]}"
+        self.password = secrets.token_urlsafe(32)
+        self.env = dict(os.environ, POSTGRES_PASSWORD=self.password,
+                        KOVA_API_PORT="0", KOVA_DB_PORT="0",
+                        KOVA_ORIGIN="http://127.0.0.1:0")
+        self.host = None
+        self.port = None
+
+    def compose(self, *args, capture=False):
+        return subprocess.run(
+            ["docker", "compose", "-p", self.project, "-f", str(COMPOSE), *args],
+            env=self.env, check=True, capture_output=capture, text=True,
+        ).stdout
+
+    def start(self):
+        self.compose("up", "db", "-d", "--wait")
+        address = self.compose("port", "db", "5432", capture=True).strip()
+        self.host, port = address.rsplit(":", 1)
+        self.port = str(int(port))
+
+    def stop(self):
+        self.compose("down", "-v", "--remove-orphans")
+
+
 def main():
     binary = Path(os.environ.get("KOVA_TEST_SERVER_BINARY", ""))
     if not binary.is_file():
@@ -197,37 +224,25 @@ def main():
             subprocess.run([cargo, "build", "-p", "kova-server", "--locked"],
                            cwd=ROOT, check=True, timeout=600)
 
-    processes, db_names = [], []
+    processes, db_names = [], ["a", "b", "c"]
     temp = tempfile.TemporaryDirectory(prefix="kova-replication-")
     key_files = []
-    password = secrets.token_urlsafe(32)
-    project = "kova-replica-" + uuid4().hex[:12]
-    compose_env = dict(os.environ, POSTGRES_PASSWORD=password,
-                       KOVA_API_PORT="0", KOVA_DB_PORT="0",
-                       KOVA_ORIGIN="http://127.0.0.1:0")
+    databases = {name: DatabaseInstance(name) for name in db_names}
 
-    def compose(*args, capture=False):
-        return subprocess.run(
-            ["docker", "compose", "-p", project, "-f", str(COMPOSE), *args],
-            env=compose_env, check=True, capture_output=capture, text=True,
-        ).stdout
+    def compose(database, *args, capture=False):
+        return databases[database].compose(*args, capture=capture)
 
     def query_db(database, sql):
-        return compose("exec", "-T", "db", "psql", "-XAtq", "-v",
-                       "ON_ERROR_STOP=1", "-U", "kova", "-d", database,
+        return compose(database, "exec", "-T", "db", "psql", "-XAtq", "-v",
+                       "ON_ERROR_STOP=1", "-U", "kova", "-d", "kova",
                        "-c", sql, capture=True).strip()
 
     def query(sql):
         return query_db(db_names[0], sql)
 
     try:
-        compose("up", "db", "-d", "--wait")
-        address = compose("port", "db", "5432", capture=True).strip()
-        db_host, db_port = address.rsplit(":", 1)
-        db_port = str(int(db_port))
-        for name in ("replica_a", "replica_b", "replica_c"):
-            query_db("kova", f"CREATE DATABASE {name}")
-            db_names.append(name)
+        for database in databases.values():
+            database.start()
 
         people = {name: identity() for name in ("alice", "bob", "carol")}
         origins = [f"http://127.0.0.1:{free_port()}" for _ in range(3)]
@@ -250,9 +265,10 @@ def main():
             port = origins[index].rsplit(":", 1)[1]
             peers = [descriptor for peer_index, descriptor in enumerate(descriptors)
                      if peer_index != index]
-            env = dict(os.environ, PGHOST=db_host, PGPORT=db_port,
-                       PGDATABASE=db_names[index], PGUSER="kova",
-                       PGPASSWORD=password,
+            database = databases[db_names[index]]
+            env = dict(os.environ, PGHOST=database.host, PGPORT=database.port,
+                       PGDATABASE="kova", PGUSER="kova",
+                       PGPASSWORD=database.password,
                        KOVA_ORIGIN=origins[index], KOVA_LISTEN=f"127.0.0.1:{port}",
                        KOVA_FEDERATION_KEY_FILE=str(key_files[index]),
                        KOVA_FEDERATION_PEERS=json.dumps(peers))
@@ -269,9 +285,10 @@ def main():
         for index in range(3):
             origin = origins[index]
             alice = people["alice"]
-            bootstrap = dict(os.environ, PGHOST=db_host, PGPORT=db_port,
-                             PGDATABASE=db_names[index], PGUSER="kova",
-                             PGPASSWORD=password)
+            database = databases[db_names[index]]
+            bootstrap = dict(os.environ, PGHOST=database.host, PGPORT=database.port,
+                             PGDATABASE="kova", PGUSER="kova",
+                             PGPASSWORD=database.password)
             subprocess.run([str(binary), "bootstrap-admin", "alice", "Alice", public(alice[0])],
                            cwd=ROOT, env=bootstrap, check=True, capture_output=True)
             tokens[(index, "alice")] = login(origin, alice)
@@ -406,8 +423,9 @@ def main():
              (500, 502, 503), tokens[(0, "alice")], {"origin": b}, "POST")
         port = origins[1].rsplit(":", 1)[1]
         peers_b = [descriptor for peer_index, descriptor in enumerate(descriptors) if peer_index != 1]
-        env_b = dict(os.environ, PGHOST=db_host, PGPORT=db_port, PGDATABASE=db_names[1],
-                     PGUSER="kova", PGPASSWORD=password, KOVA_ORIGIN=b,
+        database_b = databases[db_names[1]]
+        env_b = dict(os.environ, PGHOST=database_b.host, PGPORT=database_b.port,
+                     PGDATABASE="kova", PGUSER="kova", PGPASSWORD=database_b.password, KOVA_ORIGIN=b,
                      KOVA_LISTEN=f"127.0.0.1:{port}",
                      KOVA_FEDERATION_KEY_FILE=str(key_files[1]),
                      KOVA_FEDERATION_PEERS=json.dumps(peers_b))
@@ -432,8 +450,8 @@ def main():
         received_ids = {item["event"]["event_id"] for item in page_b["items"]}
         assert set(bulk_ids).issubset(received_ids)
         assert int(query(f"SELECT count(*) FROM dm_events WHERE conversation_id='{manifest['conversation_id']}'")) == 29
-        c_count = compose("exec", "-T", "db", "psql", "-XAtq", "-v", "ON_ERROR_STOP=1",
-                          "-U", "kova", "-d", db_names[2], "-c",
+        c_count = compose(db_names[2], "exec", "-T", "db", "psql", "-XAtq", "-v", "ON_ERROR_STOP=1",
+                          "-U", "kova", "-d", "kova", "-c",
                           f"SELECT count(*) FROM dm_conversations WHERE id='{manifest['conversation_id']}'::uuid",
                           capture=True).strip()
         assert c_count == "0"
@@ -502,8 +520,9 @@ def main():
                         raise TimeoutError("Rust client did not request primary restart")
                     time.sleep(0.1)
                 port = origins[0].rsplit(":", 1)[1]
-                env_a = dict(os.environ, PGHOST=db_host, PGPORT=db_port,
-                             PGDATABASE=db_names[0], PGUSER="kova", PGPASSWORD=password,
+                database_a = databases[db_names[0]]
+                env_a = dict(os.environ, PGHOST=database_a.host, PGPORT=database_a.port,
+                             PGDATABASE="kova", PGUSER="kova", PGPASSWORD=database_a.password,
                              KOVA_ORIGIN=a, KOVA_LISTEN=f"127.0.0.1:{port}",
                              KOVA_FEDERATION_KEY_FILE=str(key_files[0]),
                              KOVA_FEDERATION_PEERS=json.dumps(descriptors[1:]))
@@ -591,8 +610,8 @@ def main():
         }, "POST")
         call(a, f"/dm/conversations/{manifest2['conversation_id']}/replicas/sync", 403,
              tokens[(0, "alice")], {"origin": b}, "POST")
-        missing_on_b = compose("exec", "-T", "db", "psql", "-XAtq", "-v", "ON_ERROR_STOP=1",
-                               "-U", "kova", "-d", db_names[1], "-c",
+        missing_on_b = compose(db_names[1], "exec", "-T", "db", "psql", "-XAtq", "-v", "ON_ERROR_STOP=1",
+                               "-U", "kova", "-d", "kova", "-c",
                                f"SELECT count(*) FROM dm_conversations WHERE id='{manifest2['conversation_id']}'::uuid",
                                capture=True).strip()
         assert missing_on_b == "0"
@@ -607,9 +626,10 @@ def main():
             port = origins[index].rsplit(":", 1)[1]
             peers = [descriptor for peer_index, descriptor in enumerate(descriptors)
                      if peer_index != index]
-            env = dict(os.environ, PGHOST=db_host, PGPORT=db_port,
-                       PGDATABASE=db_names[index], PGUSER="kova",
-                       PGPASSWORD=password,
+            database = databases[db_names[index]]
+            env = dict(os.environ, PGHOST=database.host, PGPORT=database.port,
+                       PGDATABASE="kova", PGUSER="kova",
+                       PGPASSWORD=database.password,
                        KOVA_ORIGIN=origins[index], KOVA_LISTEN=f"127.0.0.1:{port}",
                        KOVA_FEDERATION_KEY_FILE=str(key_files[index]),
                        KOVA_FEDERATION_PEERS=json.dumps(peers))
@@ -622,8 +642,8 @@ def main():
         assert call(a, f"/dm/conversations/{manifest['conversation_id']}/replicas",
                     200, tokens[(0, "alice")]) == reduced
         call(b, event_path, (401, 403), tokens[(1, "bob")])
-        assert compose("exec", "-T", "db", "psql", "-XAtq", "-v", "ON_ERROR_STOP=1",
-                       "-U", "kova", "-d", db_names[1], "-c",
+        assert compose(db_names[1], "exec", "-T", "db", "psql", "-XAtq", "-v", "ON_ERROR_STOP=1",
+                       "-U", "kova", "-d", "kova", "-c",
                        f"SELECT count(*) FROM dm_conversations WHERE id='{manifest2['conversation_id']}'::uuid",
                        capture=True).strip() == "0"
         print("Réplication MP OK : consentement bilatéral, synchronisation A/B, exclusion de C, reprise persistante")
@@ -642,7 +662,8 @@ def main():
                 if log_path.exists():
                     print(f"--- {log_path.name} ---", file=sys.stderr)
                     print(log_path.read_text(encoding="utf-8", errors="replace"), file=sys.stderr)
-        compose("down", "-v", "--remove-orphans")
+        for database in databases.values():
+            database.stop()
         temp.cleanup()
 
 

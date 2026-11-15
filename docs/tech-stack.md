@@ -1,5 +1,13 @@
 # Registre des décisions techniques
 
+## Distribution MVP — 15 novembre 2026
+
+- Compose de production autonome, sans ports hôte pour l'API et PostgreSQL ; Caddy **2.11.9-alpine** termine HTTPS, conserve certificats/état sur volumes et relaie REST/WebSocket. Pas de changement des origines signées ni de confiance implicite dans les en-têtes de proxy. Compose de développement conservé séparément.
+- Secrets fichiers Compose : `POSTGRES_PASSWORD_FILE` côté image PostgreSQL 17, `KOVA_DATABASE_PASSWORD_FILE` lu par SQLx 0.8.6 côté API sans mutation de l'environnement. Secret de fédération réutilisé. Les montages Compose ne sont pas un coffre chiffré ; accès hôte à protéger.
+- Sauvegarde custom via `pg_dump` 17, restauration `pg_restore --single-transaction --exit-on-error` dans une nouvelle base `template0`. Aucun écrasement, suppression ou basculement automatique. Les clés clientes et la clé de fédération nécessitent leurs propres sauvegardes.
+- Distribution Windows MSVC en ZIP explicitement non signé, profils Debug/Release, chemin Cargo metadata, inventaire et SHA-256. Aucun nouvel outil d'installeur/signature tant que certificat et exigences de publication ne sont pas disponibles. Quotas de disque gérés par l'hôte ; ressources et rotation des journaux bornées par Compose, sans promettre une borne du volume PostgreSQL.
+- Références consultées le 2026-11-15 : [image officielle Caddy et tags](https://hub.docker.com/_/caddy), [HTTPS automatique Caddy](https://caddyserver.com/docs/automatic-https), [reverse_proxy et WebSocket](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy), [limite des corps](https://caddyserver.com/docs/caddyfile/directives/request_body), [secrets Compose](https://docs.docker.com/compose/how-tos/use-secrets/), [ressources et journaux Compose](https://docs.docker.com/reference/compose-file/services/), [pg_dump 17](https://www.postgresql.org/docs/17/app-pgdump.html), [pg_restore 17](https://www.postgresql.org/docs/17/app-pgrestore.html), [CREATE DATABASE 17](https://www.postgresql.org/docs/17/sql-createdatabase.html). `PgConnectOptions::{new,password}` vérifié dans le source installé officiel SQLx 0.8.6 (`sqlx-postgres/src/options/mod.rs`). Voir [le guide d'exploitation](distribution.md) pour les limites et la recette.
+
 ## Bascule MP — décision du 10 novembre 2026
 
 - Stack inchangée : reqwest 0.12.28, GPUI 0.2.2, cache chiffré age/SQLite et sessions du coffre. La sélection appartient au cœur client ; le desktop fournit les sessions par origine. Aucun annuaire, nouvelle autorisation ou nouveau protocole cryptographique.

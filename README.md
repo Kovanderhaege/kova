@@ -16,6 +16,8 @@ Voir le [bilan et plan de migration](docs/migration-plan.md), les [domaines](doc
 
 Voir aussi le [prototype Windows et ses prérequis](docs/windows-spike.md) et la [politique de licence et de modèle économique](docs/decisions/licensing.md). Le parcours d’identité Windows est décrit dans [le guide desktop](docs/windows-identity.md). Le parcours communautaire est décrit dans [le guide Windows](docs/windows-communities.md).
 
+Le jalon 8 fournit le [déploiement serveur HTTPS, les sauvegardes et le paquet Windows](docs/distribution.md). Le parcours de chat public et de MP avec panne de A, échange via B et convergence a été vérifié avec deux processus desktop packagés et deux PostgreSQL indépendants. Le ZIP de développement reste non signé ; le déploiement HTTPS public et les autres architectures ne sont pas validés par cette recette locale. Voir [les preuves du jalon 8](docs/migration-plan.md#distribution-du-jalon-8--15-novembre-2026).
+
 Le parcours privé est décrit dans [le guide MP Windows](docs/windows-dm.md), avec ses limites de récupération, de durée des attestations et de support multi-appareils. Le choix OpenMLS est détaillé dans [la décision E2EE](docs/decisions/e2ee.md).
 
 Le parcours de chat est décrit dans [le guide Windows](docs/windows-chat.md). Les messages communautaires sont lisibles par leur instance ; ils ne sont pas chiffrés de bout en bout.
@@ -31,6 +33,11 @@ Les licences retenues sont `AGPL-3.0-only` pour le serveur, `GPL-3.0-only` pour 
 `cargo fmt --all -- --check` et `cargo test --workspace --locked` vérifient le socle Rust, y compris le coffre natif sur Windows. Les suites Python `persistence.py`, `sessions.py`, `communities.py`, `chat.py`, `dm.py`, `replication.py`, `revocations.py` et `backup_restore.py` dans `crates/kova-server/tests` nécessitent Docker actif et `cryptography>=41` (`chat.py` demande aussi `websockets==17.3`) ; elles construisent des instances jetables. Construire le serveur natif avec `cargo build -p kova-server --locked` avant `replication.py`. Définir `KOVA_TEST_RUST_CLIENT=1` pour inclure les scénarios réseau du client Rust dans les suites chat, MP et réplication. Ces vérifications ont réussi localement le 9 novembre 2026. La CI est configurée, mais son passage distant n'est pas revendiqué.
 
 ## Démarrage local
+
+Le [guide de distribution](docs/distribution.md) décrit l'installation serveur
+avec Caddy/HTTPS, les secrets, la sauvegarde/restauration PostgreSQL et le paquet
+Windows de développement. Le Compose de production est distinct du démarrage
+local ci-dessous.
 
 Avec Docker et la variable d’environnement `POSTGRES_PASSWORD` définie, lancer depuis la racine du dépôt :
 
