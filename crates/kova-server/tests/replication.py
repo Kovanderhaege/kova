@@ -1,6 +1,7 @@
 """Bilateral DM replica policy, authenticated synchronization and durable convergence."""
 import json
 from hashlib import sha256
+from concurrent.futures import ThreadPoolExecutor
 import os
 from pathlib import Path
 import secrets
@@ -102,6 +103,19 @@ def signed_conversation(alice, creator, recipient, origin):
     manifest["signature"] = alice[1].sign(
         json.dumps(payload, separators=(",", ":")).encode()).hex()
     return manifest
+
+
+def renewed_bundle(person, original, issued, expires):
+    """Same roster keys/package, independently signed root validity interval."""
+    bundle = dict(original, issued_at=issued, expires_at=expires)
+    payload = (f"kova-device-v2\n{bundle['global_identity_id']}\n{bundle['device_id']}\n"
+               f"{bundle['device_public_key']}\n{issued}\n{expires}")
+    bundle["authorization_signature"] = person[0].sign(payload.encode()).hex()
+    canonical = ("kova-dm-device-v1", bundle["global_identity_id"], bundle["device_id"],
+                 bundle["root_public_key"], bundle["device_public_key"], issued, expires,
+                 bundle["authorization_signature"], bundle["key_package"])
+    bundle["signature"] = person[1].sign(json.dumps(canonical, separators=(",", ":")).encode()).hex()
+    return bundle
 
 
 def signed_event(person, manifest, event_id, parents, ciphertext):
@@ -456,6 +470,77 @@ def main():
                           capture=True).strip()
         assert c_count == "0"
 
+        # Reconstruct the actual v8 schema on disposable B, with a populated
+        # conversation and history, then let startup apply additive migration 9.
+        old_b, old_log, _ = processes[1]
+        old_b.terminate()
+        old_b.wait(timeout=15)
+        old_log.close()
+        query_db(db_names[1], "ALTER TABLE dm_conversations DROP COLUMN authorization_state; "
+                 "DELETE FROM _sqlx_migrations WHERE version=9")
+        log_path = Path(temp.name) / "b-upgrade-v9.log"
+        log = log_path.open("w", encoding="utf-8")
+        process = subprocess.Popen([str(binary)], cwd=ROOT, env=env_b,
+                                   stdout=log, stderr=subprocess.STDOUT)
+        processes[1] = (process, log, log_path)
+        wait_health(b, process)
+        assert call(b, f"/dm/conversations/{manifest['conversation_id']}",
+                    200, tokens[(1, "alice")]) == manifest
+        assert call(b, event_path, 200, tokens[(1, "bob")]) == page_b
+        assert query_db(db_names[1], "SELECT success FROM _sqlx_migrations WHERE version=9") == "t"
+
+        # Renewal preserves the immutable manifest and outbox bytes across real
+        # expiration. Sessions retain their separately issued login credentials.
+        authorization_path = f"/dm/conversations/{manifest['conversation_id']}/authorizations"
+        sync_path = f"/dm/conversations/{manifest['conversation_id']}/replicas/sync"
+        issued = int(time.time())
+        short_a = renewed_bundle(alice, bundle_a, issued, issued + 4)
+        short_b = renewed_bundle(bob, bundle_b, issued, issued + 4)
+        call(a, authorization_path, 200, tokens[(0, "alice")], short_a, "POST")
+        call(a, authorization_path, 200, tokens[(0, "bob")], short_b, "POST")
+        late_history = signed_event(alice, manifest, str(uuid4()), [parent], "de")
+        call(a, event_path, 200, tokens[(0, "alice")], late_history, "POST")
+        outbox = signed_event(alice, manifest, str(uuid4()), [late_history["event_id"]], "ef")
+        while int(time.time()) <= issued + 4:
+            time.sleep(0.1)
+        call(a, event_path, 403, tokens[(0, "alice")], outbox, "POST")
+        assert len(call(a, event_path, 200, tokens[(0, "alice")])["items"]) == 30
+        # Expired original admission proofs do not stop historical catch-up.
+        call(a, sync_path, 200, tokens[(0, "alice")], {"origin": b}, "POST")
+        assert len(call(b, event_path, 200, tokens[(1, "alice")])["items"]) == 30
+
+        now_renewed = int(time.time())
+        renewed_a = renewed_bundle(alice, bundle_a, now_renewed, now_renewed + 80_000)
+        older_a = renewed_bundle(alice, bundle_a, now_renewed, now_renewed + 40_000)
+        renewed_b = renewed_bundle(bob, bundle_b, now_renewed, now_renewed + 80_000)
+        call(a, authorization_path, 400, tokens[(0, "alice")],
+             dict(renewed_a, signature="00" * 64), "POST")
+        substituted = renewed_bundle(alice, dict(bundle_a, key_package="ab"),
+                                     now_renewed, now_renewed + 80_000)
+        call(a, authorization_path, 400, tokens[(0, "alice")], substituted, "POST")
+        future_bundle = renewed_bundle(alice, bundle_a, now_renewed + 60, now_renewed + 120)
+        call(a, authorization_path, 400, tokens[(0, "alice")], future_bundle, "POST")
+        call(a, authorization_path, (400, 403), tokens[(0, "alice")], renewed_b, "POST")
+        with ThreadPoolExecutor(2) as workers:
+            list(workers.map(lambda bundle: call(a, authorization_path, 200,
+                 tokens[(0, "alice")], bundle, "POST"), (renewed_a, older_a)))
+        state = call(a, authorization_path, 200, tokens[(0, "alice")])
+        assert renewed_a in state["authorizations"]
+        call(a, event_path, 403, tokens[(0, "alice")], outbox, "POST")
+        call(a, authorization_path, 200, tokens[(0, "bob")], renewed_b, "POST")
+        assert call(a, f"/dm/conversations/{manifest['conversation_id']}",
+                    200, tokens[(0, "alice")]) == manifest
+        # B still has expired proofs and refuses until the control state arrives.
+        call(b, event_path, 403, tokens[(1, "alice")], outbox, "POST")
+        call(a, sync_path, 200, tokens[(0, "alice")], {"origin": b}, "POST")
+        assert renewed_a in call(b, authorization_path, 200,
+                                 tokens[(1, "alice")])["authorizations"]
+        ack = call(b, event_path, 200, tokens[(1, "alice")], outbox, "POST")
+        assert ack["event"] == outbox
+        assert call(b, event_path, 200, tokens[(1, "alice")], outbox, "POST") == ack
+        call(b, sync_path, 200, tokens[(1, "alice")], {"origin": a}, "POST")
+        assert len(call(a, event_path, 200, tokens[(0, "alice")])["items"]) == 31
+
         # A far-future, correctly signed candidate cannot advance policy state or
         # leave the conversation blocked by a fabricated policy conflict.
         future = dict(policy, version=65, previous_hash="a1" * 32)
@@ -589,8 +674,8 @@ def main():
             "SELECT count(*) FROM dm_replica_conflicts "
             f"WHERE conversation_id='{manifest['conversation_id']}'::uuid") == "0"
 
-        # A valid Alice session cannot federate a conversation to a replica where Bob's
-        # enrolled device has been revoked, even though the source instance still accepts it.
+        # The control plane propagates a root revocation from a lagging replica
+        # before any message transfer, including for a conversation new to B.
         bundle_a2 = signed_bundle(alice, b"alice-key-package-2")
         bundle_b2 = signed_bundle(bob, b"bob-key-package-2")
         call(a, "/dm/key-packages", 200, tokens[(0, "alice")], bundle_a2, "POST")
@@ -608,13 +693,24 @@ def main():
             "device_public_key": bundle_b2["device_public_key"],
             "signature": bob[0].sign(revoke_body.encode()).hex(),
         }, "POST")
-        call(a, f"/dm/conversations/{manifest2['conversation_id']}/replicas/sync", 403,
+        call(a, f"/dm/conversations/{manifest2['conversation_id']}/replicas/sync", 200,
              tokens[(0, "alice")], {"origin": b}, "POST")
+        control_path = f"/dm/conversations/{manifest2['conversation_id']}/authorizations"
+        assert call(a, control_path, 200, tokens[(0, "alice")])["revocations"]
+        assert call(b, control_path, 200, tokens[(1, "alice")])["revocations"]
+        call(a, "/me", 401, tokens[(0, "bob")])
+        assert len(call(a, event_path, 200, tokens[(0, "alice")])["items"]) == 31
+        # Repeating from the source that now knows the revocation still works.
+        call(a, f"/dm/conversations/{manifest2['conversation_id']}/replicas/sync", 200,
+             tokens[(0, "alice")], {"origin": b}, "POST")
+        blocked = signed_event(alice, manifest2, str(uuid4()), [], "ed")
+        call(a, f"/dm/conversations/{manifest2['conversation_id']}/events", 403,
+             tokens[(0, "alice")], blocked, "POST")
         missing_on_b = compose(db_names[1], "exec", "-T", "db", "psql", "-XAtq", "-v", "ON_ERROR_STOP=1",
                                "-U", "kova", "-d", "kova", "-c",
                                f"SELECT count(*) FROM dm_conversations WHERE id='{manifest2['conversation_id']}'::uuid",
                                capture=True).strip()
-        assert missing_on_b == "0"
+        assert missing_on_b == "1"
 
         # Restart both stores and prove policy and replicated event history survive.
         processes[0][0].terminate(); processes[1][0].terminate()
@@ -641,11 +737,16 @@ def main():
             wait_health(origins[index], process)
         assert call(a, f"/dm/conversations/{manifest['conversation_id']}/replicas",
                     200, tokens[(0, "alice")]) == reduced
+        assert renewed_a in call(a, authorization_path, 200,
+                                 tokens[(0, "alice")])["authorizations"]
+        assert call(a, control_path, 200, tokens[(0, "alice")])["revocations"]
+        call(a, f"/dm/conversations/{manifest2['conversation_id']}/events", 403,
+             tokens[(0, "alice")], blocked, "POST")
         call(b, event_path, (401, 403), tokens[(1, "bob")])
         assert compose(db_names[1], "exec", "-T", "db", "psql", "-XAtq", "-v", "ON_ERROR_STOP=1",
                        "-U", "kova", "-d", "kova", "-c",
                        f"SELECT count(*) FROM dm_conversations WHERE id='{manifest2['conversation_id']}'::uuid",
-                       capture=True).strip() == "0"
+                       capture=True).strip() == "1"
         print("Réplication MP OK : consentement bilatéral, synchronisation A/B, exclusion de C, reprise persistante")
     finally:
         for process, log, _ in processes:

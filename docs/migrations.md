@@ -28,3 +28,8 @@ La migration `0007_direct_messages.sql` crée `dm_key_packages`, `dm_conversatio
 La migration `0008_replica_policies.sql` ajoute les propositions et politiques signées, l'unicité de la politique active, les curseurs persistants par pair, les nonces anti-rejeu et les conflits de politique. Elle ne modifie ni les messages existants ni les migrations 0001–0007. Les conversations historiques restent locales jusqu'à approbation explicite d'une politique par les deux participants. Sauvegarder la base avant mise à niveau.
 
 Chaque migration doit passer sur base vide et sur base historique peuplée, avec préservation des messages/adhésions, validation des contraintes et restauration d'une sauvegarde. Les tests de persistance existants couvrent la transition 0001→0005 ; le test séparé `backup_restore.py` vérifie désormais un pg_dump complet restauré dans une autre base.
+
+
+## Migration 0009 — renouvellement des MP
+
+`0009_dm_authorizations.sql` ajoute un état public JSONB aux conversations existantes, avec valeur vide compatible : le manifeste demeure la preuve initiale. Les manifestes, ciphertexts, identifiants et curseurs restent inchangés. Les migrations 0001–0008 sont immuables. Les nouvelles preuves et révocations sont fusionnées sous verrou ; voir [le contrat](dm-renewal.md). Sauvegarder avant mise à niveau.

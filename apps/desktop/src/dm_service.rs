@@ -47,6 +47,9 @@ pub enum Command {
         id: String,
         peer_origin: String,
     },
+    RenewAuthorization {
+        id: String,
+    },
 }
 
 fn open_store(vault: &Vault, identity: &Identity) -> Result<DmStore> {
@@ -207,6 +210,14 @@ pub fn execute(vault: &Vault, origin: &str, command: Command) -> Result<String> 
             let (received, sent) = store.sync_replicas(&instance, &session, &id, &peer_origin)?;
             Ok(format!(
                 "Réplication terminée avec {peer_origin} : {received} événement(s) reçu(s), {sent} envoyé(s).\n{}",
+                store.render(Some(&id))?
+            ))
+        }
+        Command::RenewAuthorization { id } => {
+            let session = vault.session(origin)?;
+            store.renew_authorization(&instance, &session, &identity, &id)?;
+            Ok(format!(
+                "Preuve d'appareil renouvelée pour la conversation {id}. L'historique et les envois en attente sont conservés. Chaque participant doit renouveler son appareil.\n{}",
                 store.render(Some(&id))?
             ))
         }

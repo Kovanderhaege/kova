@@ -60,6 +60,8 @@ impl DmStore {
                     .get(id)
                     .is_some_and(|conversation| conversation.pending_creation);
                 if !pending_creation {
+                    store.refresh_authorizations(instance, session, id)?;
+                    store.publish_local_authorization(instance, session, id)?;
                     let peers = store
                         .state
                         .conversations

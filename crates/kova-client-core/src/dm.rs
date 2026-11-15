@@ -2,13 +2,14 @@
 //! credentials and MLS ciphertext. All durable client state is an age-encrypted blob.
 mod failover;
 mod network;
+mod renewal;
 mod storage;
 #[cfg(test)]
 mod tests;
 
 use crate::{Identity, Instance, Result, Session};
 use kova_crypto::CryptoClient;
-use kova_protocol::dm::{ConversationManifest, DeviceBundle, DmEvent};
+use kova_protocol::dm::{ConversationManifest, DeviceBundle, DmAuthorizationState, DmEvent};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -22,6 +23,8 @@ struct Conversation {
     source_cursors: BTreeMap<String, i64>,
     #[serde(default)]
     active_policy: Option<kova_protocol::replication::ReplicaPolicy>,
+    #[serde(default)]
+    authorization_state: DmAuthorizationState,
     pending_creation: bool,
     events: BTreeMap<String, DmEvent>,
     messages: BTreeMap<String, String>,
@@ -240,12 +243,7 @@ impl DmStore {
         if !conversation.pending.is_empty() {
             return Err("Réessayer l'envoi en attente avant un nouvel envoi.".into());
         }
-        if !kova_identity::dm::verify_conversation(
-            &conversation.manifest,
-            chrono::Utc::now().timestamp(),
-        ) {
-            return Err("Autorisation d'appareil expirée : ouvrir une nouvelle conversation avec des preuves renouvelées.".into());
-        }
+        self.ensure_conversation_authorized(id)?;
         let parents = heads(conversation);
         if parents.len() > 16 {
             return Err("Trop de branches causales : synchroniser.".into());

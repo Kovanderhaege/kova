@@ -129,3 +129,8 @@ La création et les nouveaux messages vérifient les appareils actifs ; révoque
 ## Réplication MP — jalon 6
 
 Les politiques bilatérales, leurs octets signés, les routes de consentement et le transport interserveurs sont définis dans [le contrat de réplication](replication.md). Les types partagés sont dans `kova-protocol/src/replication.rs` ; les vérifications publiques dans `kova-identity/src/replication.rs`. Les événements et manifestes du jalon 5 conservent leurs formats signés. Une politique active ajoute une condition d'autorisation à chaque accès aux événements : l'instance doit en faire partie. Le client garde désormais un curseur par origine pour un même identifiant global de conversation, sans mélanger ces curseurs avec l'ordre d'affichage.
+
+
+## Renouvellement en place — jalon 10
+
+Le [contrat de renouvellement](dm-renewal.md) remplace les limites historiques de fraîcheur figée au manifeste. Les octets signés des manifestes, événements et politiques restent inchangés ; un état public séparé porte les nouvelles preuves des deux mêmes appareils et les révocations. Le contrôle circule aussi après expiration, sans accorder de droit à un nouveau réplica.

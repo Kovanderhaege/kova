@@ -1,9 +1,36 @@
 use super::*;
-use kova_protocol::dm::DmEventPage;
+use kova_protocol::dm::{DmAuthorizationState, DmEventPage};
 use kova_protocol::replication::{ReplicaApproval, ReplicaDescriptor, ReplicaPolicy};
 use reqwest::Method;
 
 impl Instance {
+    pub(super) fn dm_authorizations(
+        &self,
+        session: &Session,
+        id: &str,
+    ) -> Result<DmAuthorizationState> {
+        Ok(serde_json::from_value(self.community_request(
+            session,
+            Method::GET,
+            &format!("/dm/conversations/{id}/authorizations"),
+            None,
+        )?)?)
+    }
+
+    pub(super) fn renew_dm_authorization(
+        &self,
+        session: &Session,
+        id: &str,
+        bundle: &DeviceBundle,
+    ) -> Result<DmAuthorizationState> {
+        Ok(serde_json::from_value(self.community_request(
+            session,
+            Method::POST,
+            &format!("/dm/conversations/{id}/authorizations"),
+            Some(serde_json::to_value(bundle)?),
+        )?)?)
+    }
+
     pub fn dm_conversations(&self, session: &Session) -> Result<Vec<ConversationManifest>> {
         Ok(serde_json::from_value(self.community_request(
             session,
@@ -125,6 +152,8 @@ impl DmStore {
         self.check_identity(identity)?;
         self.check_session(instance, session)?;
         self.check_replica_origin(instance, session, id)?;
+        self.refresh_authorizations(instance, session, id)?;
+        self.ensure_conversation_authorized(id)?;
         if peer_origin == instance.origin {
             return Err("Le réplica doit être une autre instance".into());
         }
@@ -190,6 +219,8 @@ impl DmStore {
         self.check_identity(identity)?;
         self.check_session(instance, session)?;
         self.check_replica_origin(instance, session, id)?;
+        self.refresh_authorizations(instance, session, id)?;
+        self.ensure_conversation_authorized(id)?;
         if peer_origin == instance.origin {
             return Err(
                 "Sélectionnez un autre réplica conservé pour retirer cette instance.".into(),
@@ -245,6 +276,8 @@ impl DmStore {
         self.check_identity(identity)?;
         self.check_session(instance, session)?;
         self.check_replica_origin(instance, session, id)?;
+        self.refresh_authorizations(instance, session, id)?;
+        self.ensure_conversation_authorized(id)?;
         let policy = self
             .state
             .replica_proposals
@@ -321,6 +354,8 @@ impl DmStore {
     ) -> Result<ReplicaPolicy> {
         self.check_session(instance, session)?;
         self.check_replica_origin(instance, session, id)?;
+        self.refresh_authorizations(instance, session, id)?;
+        self.ensure_conversation_authorized(id)?;
         let policy = if let Some(policy) = self.state.replica_proposals.get(id) {
             policy.clone()
         } else {
@@ -580,6 +615,10 @@ impl DmStore {
         };
         manifest.signature = sign(identity, &manifest.canonical())?;
         verify_members(&crypto, &manifest)?;
+        let authorization_state = DmAuthorizationState {
+            authorizations: vec![manifest.creator.clone(), manifest.recipient.clone()],
+            revocations: Vec::new(),
+        };
         state.conversations.insert(
             id.clone(),
             Conversation {
@@ -587,6 +626,7 @@ impl DmStore {
                 cursor: 0,
                 source_cursors: BTreeMap::new(),
                 active_policy: None,
+                authorization_state,
                 pending_creation: true,
                 events: BTreeMap::new(),
                 messages: BTreeMap::new(),
@@ -621,13 +661,19 @@ impl DmStore {
             &format!("/dm/conversations/{id}"),
             None,
         )?)?;
+        let authorization_state = instance.dm_authorizations(session, id)?;
         if manifest.conversation_id != id
             || manifest.origin != instance.origin
             || manifest.creator.global_identity_id != expected_peer_identity
             || manifest.creator.device_id != expected_peer_device
             || manifest.recipient.global_identity_id != self.state.identity
             || manifest.recipient.device_id != self.state.device
-            || !kova_identity::dm::verify_conversation(&manifest, chrono::Utc::now().timestamp())
+            || !kova_identity::dm::verify_conversation_historical(&manifest)
+            || !kova_identity::dm::conversation_authorized(
+                &manifest,
+                &authorization_state,
+                chrono::Utc::now().timestamp(),
+            )
         {
             return Err("Conversation, origine ou appareil non vérifié.".into());
         }
@@ -657,6 +703,7 @@ impl DmStore {
                 cursor: 0,
                 source_cursors: BTreeMap::new(),
                 active_policy: None,
+                authorization_state,
                 pending_creation: false,
                 events: BTreeMap::new(),
                 messages: BTreeMap::new(),
@@ -676,7 +723,8 @@ impl DmStore {
             .get(id)
             .ok_or("Conversation inconnue")?
             .clone();
-        if conversation.pending_creation {
+        let was_pending_creation = conversation.pending_creation;
+        if was_pending_creation {
             let ack: ConversationManifest = serde_json::from_value(instance.community_request(
                 session,
                 Method::POST,
@@ -693,6 +741,10 @@ impl DmStore {
                 .ok_or("Conversation inconnue")?
                 .pending_creation = false;
             self.save(state)?;
+        }
+        if !was_pending_creation {
+            self.refresh_authorizations(instance, session, id)?;
+            self.publish_local_authorization(instance, session, id)?;
         }
         for event_id in &conversation.pending {
             let event = conversation.events.get(event_id).ok_or("Envoi absent")?;
@@ -721,6 +773,8 @@ impl DmStore {
     pub fn sync(&mut self, instance: &Instance, session: &Session, id: &str) -> Result<()> {
         self.check_session(instance, session)?;
         self.check_replica_origin(instance, session, id)?;
+        self.refresh_authorizations(instance, session, id)?;
+        self.publish_local_authorization(instance, session, id)?;
         for _ in 0..64 {
             let cursor = self
                 .state

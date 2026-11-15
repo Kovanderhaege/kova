@@ -9,7 +9,7 @@ use kova_protocol::{
 };
 use ring::signature::{Ed25519KeyPair, KeyPair};
 
-fn key(seed: u8) -> Ed25519KeyPair {
+pub(super) fn key(seed: u8) -> Ed25519KeyPair {
     Ed25519KeyPair::from_seed_unchecked(&[seed; 32]).expect("fixed seed")
 }
 
@@ -44,7 +44,7 @@ fn signed_bundle(root: &Ed25519KeyPair, device: &Ed25519KeyPair) -> DeviceBundle
     bundle
 }
 
-fn fixture() -> (ConversationManifest, Ed25519KeyPair, Ed25519KeyPair) {
+pub(super) fn fixture() -> (ConversationManifest, Ed25519KeyPair, Ed25519KeyPair) {
     let root_a = key(1);
     let device_a = key(2);
     let root_b = key(3);

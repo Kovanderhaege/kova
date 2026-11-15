@@ -67,3 +67,8 @@ Les attestations du manifeste restent bornées à 24 heures et le roster MLS res
 Bornes du prototype : huit réplicas, 64 versions de politique par conversation, dix événements par échange interserveurs et corps limités à 2 Mio. Le client parcourt au plus 64 lots par action ; au-delà, il indique une synchronisation incomplète à relancer. Le serveur refuse une version supplémentaire plutôt que d'activer une politique qu'il ne pourrait plus synchroniser. Une proposition concurrente au même numéro est refusée ; aucun arbitrage automatique ni fusion des autorisations n'est fourni.
 
 Les preuves effectivement exécutées sont consignées dans [le bilan de migration](migration-plan.md) ; la présence de ces routes ne remplace pas leur validation.
+
+
+## Renouvellement en place — jalon 10
+
+Le [contrat de renouvellement](dm-renewal.md) remplace les limites historiques de fraîcheur figée au manifeste. Les octets signés des manifestes, événements et politiques restent inchangés ; un état public séparé porte les nouvelles preuves des deux mêmes appareils et les révocations. Le contrôle circule aussi après expiration, sans accorder de droit à un nouveau réplica.

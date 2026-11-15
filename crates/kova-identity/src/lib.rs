@@ -50,3 +50,6 @@ pub mod replication;
 
 #[cfg(test)]
 mod replication_tests;
+
+#[cfg(test)]
+mod dm_authorization_tests;

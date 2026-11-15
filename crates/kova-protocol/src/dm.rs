@@ -2,6 +2,22 @@
 //! The payload remains opaque to servers; MLS owns its cryptographic format.
 use serde::{Deserialize, Serialize};
 
+/// Public control state, separate from the immutable MLS conversation manifest.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DmAuthorizationState {
+    pub authorizations: Vec<DeviceBundle>,
+    pub revocations: Vec<DmRevocation>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DmRevocation {
+    pub global_identity_id: String,
+    pub device_public_key: String,
+    pub signature: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DeviceBundle {

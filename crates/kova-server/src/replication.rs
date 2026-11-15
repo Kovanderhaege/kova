@@ -72,6 +72,8 @@ struct FederationSyncRequest {
     manifest: ConversationManifest,
     policy: ReplicaPolicy,
     policies: Vec<ReplicaPolicy>,
+    #[serde(default)]
+    authorizations: kova_protocol::dm::DmAuthorizationState,
     source_origin: String,
     source_after: i64,
     remote_after: i64,
@@ -84,6 +86,8 @@ struct FederationSyncResponse {
     acknowledged_cursor: i64,
     items: Vec<StoredDmEvent>,
     next_cursor: i64,
+    #[serde(default)]
+    authorizations: kova_protocol::dm::DmAuthorizationState,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -407,7 +411,7 @@ async fn approve_policy(
     if policy.version > FEDERATION_MAX_POLICY_HISTORY as u64
         || policy.conversation_id != conversation
         || !kova_identity::replication::valid_policy(policy, &manifest)
-        || !kova_identity::dm::verify_conversation(&manifest, now)
+        || !kova_identity::dm::verify_conversation_historical(&manifest)
         || !request.policy.approvals.is_empty()
         || request.approval.identity != identity
         || request.approval.device != device
@@ -421,6 +425,11 @@ async fn approve_policy(
         .bind(&conversation)
         .fetch_one(&mut *tx)
         .await?;
+    let authorization_state =
+        crate::dm::authorization_state(&mut tx, &conversation, &manifest).await?;
+    if !kova_identity::dm::conversation_authorized(&manifest, &authorization_state, now) {
+        return Err(AuthError::Forbidden);
+    }
     if !device_active(
         &mut tx,
         &request.approval.identity,
@@ -538,48 +547,6 @@ fn configured_descriptors(auth: &Auth, policy: &ReplicaPolicy) -> bool {
     })
 }
 
-async fn participants_active(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    manifest: &ConversationManifest,
-    current_time: i64,
-) -> Result<bool, AuthError> {
-    let mut participants = [&manifest.creator, &manifest.recipient];
-    participants.sort_by(|left, right| {
-        (&left.global_identity_id, &left.device_id)
-            .cmp(&(&right.global_identity_id, &right.device_id))
-    });
-    for participant in participants {
-        if !device_active(
-            tx,
-            &participant.global_identity_id,
-            &participant.device_id,
-            current_time,
-        )
-        .await?
-        {
-            return Ok(false);
-        }
-    }
-    Ok(true)
-}
-
-async fn policy_approvals_active(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    policy: &ReplicaPolicy,
-    current_time: i64,
-) -> Result<bool, AuthError> {
-    let mut approvals = policy.approvals.iter().collect::<Vec<_>>();
-    approvals.sort_by(|left, right| {
-        (&left.identity, &left.device).cmp(&(&right.identity, &right.device))
-    });
-    for approval in approvals {
-        if !device_active(tx, &approval.identity, &approval.device, current_time).await? {
-            return Ok(false);
-        }
-    }
-    Ok(true)
-}
-
 async fn sync_replica(
     State(auth): State<Arc<Auth>>,
     headers: HeaderMap,
@@ -629,11 +596,8 @@ async fn sync_replica(
     if policies.last() != Some(&policy) {
         return Err(AuthError::Internal);
     }
-    let current_time = now()?;
+    let authorizations = crate::dm::authorization_state(&mut tx, &conversation, &manifest).await?;
     if !kova_identity::replication::verify_policy(&policy, &manifest)
-        || !kova_identity::dm::verify_conversation(&manifest, current_time)
-        || !participants_active(&mut tx, &manifest, current_time).await?
-        || !policy_approvals_active(&mut tx, &policy, current_time).await?
         || !policy.replicas.iter().any(|r| {
             r.origin == auth.origin && Some(&r.public_key) == auth.federation_public_key.as_ref()
         })
@@ -649,16 +613,19 @@ async fn sync_replica(
     let current_has_peer = policy.replicas.iter().any(|r| {
         r.origin == request.origin && auth.federation_peers.get(&r.origin) == Some(&r.public_key)
     });
-    let control_only = !current_has_peer
+    let revoked = !authorizations.revocations.is_empty()
+        || !crate::dm::participants_not_revoked(&mut tx, &manifest).await?;
+    let historical_control_only = !current_has_peer
         && policies.iter().any(|historical| {
             historical.replicas.iter().any(|replica| {
                 replica.origin == request.origin
                     && auth.federation_peers.get(&replica.origin) == Some(&replica.public_key)
             })
         });
-    if !current_has_peer && !control_only {
+    if !current_has_peer && !historical_control_only {
         return Err(AuthError::Forbidden);
     }
+    let control_only = revoked || historical_control_only;
     let peer_key = auth
         .federation_peers
         .get(&request.origin)
@@ -690,6 +657,7 @@ async fn sync_replica(
         manifest,
         policy,
         policies,
+        authorizations,
         source_origin: auth.origin.clone(),
         source_after: acknowledged_cursor,
         remote_after: received_cursor,
@@ -754,13 +722,14 @@ async fn sync_replica(
     if !kova_identity::verify_signature(&key, &canonical, &signed.signature) {
         return Err(AuthError::Credentials);
     }
-    if control_only {
-        if !signed.response.items.is_empty()
+    if control_only
+        && (!signed.response.items.is_empty()
             || signed.response.next_cursor != received_cursor
-            || signed.response.acknowledged_cursor < acknowledged_cursor
-        {
-            return Err(AuthError::Invalid);
-        }
+            || signed.response.acknowledged_cursor < acknowledged_cursor)
+    {
+        return Err(AuthError::Invalid);
+    }
+    if control_only && !revoked {
         return Ok(Json(SyncResult {
             received: 0,
             sent: 0,
@@ -782,7 +751,7 @@ async fn sync_replica(
         },
     )
     .await?;
-    let sent = request.events.len() as u64;
+    let sent = (signed.response.acknowledged_cursor - acknowledged_cursor) as u64;
     Ok(Json(SyncResult {
         received: signed.response.items.len() as u64,
         sent,
@@ -824,7 +793,7 @@ async fn federation_sync(
         || request.policies.is_empty()
         || request.policies.len() > FEDERATION_MAX_POLICY_HISTORY
         || request.policies.last() != Some(&request.policy)
-        || !kova_identity::dm::verify_conversation(&request.manifest, now()?)
+        || !kova_identity::dm::verify_conversation_historical(&request.manifest)
         || !request
             .policy
             .replicas
@@ -923,13 +892,13 @@ async fn apply_federation_request(
             .bind(&request.manifest.recipient.global_identity_id).bind(&request.manifest.recipient.device_id)
             .bind(DbJson(request.manifest.clone())).execute(&mut *tx).await?;
     }
-    let current_time = now()?;
-    if !kova_identity::dm::verify_conversation(&request.manifest, current_time)
-        || !participants_active(&mut tx, &request.manifest, current_time).await?
-        || !policy_approvals_active(&mut tx, &request.policy, current_time).await?
-    {
-        return Err(AuthError::Forbidden);
-    }
+    crate::dm::merge_authorizations(
+        &mut tx,
+        &conversation,
+        &request.manifest,
+        &request.authorizations,
+    )
+    .await?;
     let current: Option<(i64, String)> = sqlx::query_as("SELECT version,policy_hash FROM dm_replica_policies WHERE conversation_id=$1::uuid AND active FOR UPDATE")
         .bind(&conversation).fetch_optional(&mut *tx).await?;
     let current_version = current
@@ -1004,6 +973,52 @@ async fn apply_federation_request(
     if conflicted {
         return Err(AuthError::Forbidden);
     }
+    // Commit control state before processing event batches. A malformed or
+    // incomplete batch must never roll back a valid renewal or revocation.
+    tx.commit().await?;
+    let mut tx = auth.pool.begin().await?;
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+        .bind(&conversation)
+        .execute(&mut *tx)
+        .await?;
+    let manifest: ConversationManifest = sqlx::query_scalar::<_, DbJson<_>>(
+        "SELECT manifest FROM dm_conversations WHERE id=$1::uuid FOR UPDATE",
+    )
+    .bind(&conversation)
+    .fetch_one(&mut *tx)
+    .await?
+    .0;
+    let active_hash: Option<String> = sqlx::query_scalar(
+        "SELECT policy_hash FROM dm_replica_policies WHERE conversation_id=$1::uuid AND active",
+    )
+    .bind(&conversation)
+    .fetch_optional(&mut *tx)
+    .await?;
+    if active_hash.as_deref()
+        != Some(kova_identity::replication::policy_hash(&request.policy).as_str())
+    {
+        return Err(AuthError::Forbidden);
+    }
+    let authorizations = crate::dm::authorization_state(&mut tx, &conversation, &manifest).await?;
+    if !authorizations.revocations.is_empty()
+        || !crate::dm::participants_not_revoked(&mut tx, &manifest).await?
+    {
+        let source_cursor: i64 = sqlx::query_scalar(
+            "SELECT received_cursor FROM dm_replica_cursors WHERE conversation_id=$1::uuid AND origin=$2",
+        )
+        .bind(&conversation)
+        .bind(&request.source_origin)
+        .fetch_optional(&mut *tx)
+        .await?
+        .unwrap_or(0);
+        tx.commit().await?;
+        return Ok(FederationSyncResponse {
+            acknowledged_cursor: source_cursor,
+            items: Vec::new(),
+            next_cursor: request.remote_after,
+            authorizations,
+        });
+    }
     sqlx::query("INSERT INTO dm_replica_cursors(conversation_id,origin) VALUES($1::uuid,$2) ON CONFLICT DO NOTHING")
         .bind(&conversation).bind(&request.source_origin).execute(&mut *tx).await?;
     let expected: i64 = sqlx::query_scalar("SELECT received_cursor FROM dm_replica_cursors WHERE conversation_id=$1::uuid AND origin=$2 FOR UPDATE")
@@ -1076,6 +1091,7 @@ async fn apply_federation_request(
         acknowledged_cursor: received,
         items,
         next_cursor,
+        authorizations,
     })
 }
 
@@ -1108,6 +1124,8 @@ async fn apply_remote_page(
     let Some(DbJson(manifest)) = manifest else {
         return Err(AuthError::NotFound);
     };
+    crate::dm::merge_authorizations(&mut tx, conversation, &manifest, &response.authorizations)
+        .await?;
     let active_policy: Option<DbJson<ReplicaPolicy>> = sqlx::query_scalar(
         "SELECT policy FROM dm_replica_policies WHERE conversation_id=$1::uuid AND active FOR UPDATE",
     ).bind(conversation).fetch_optional(&mut *tx).await?;
@@ -1131,12 +1149,27 @@ async fn apply_remote_page(
     {
         return Err(AuthError::Forbidden);
     }
-    let current_time = now()?;
-    if !kova_identity::dm::verify_conversation(&manifest, current_time)
-        || !participants_active(&mut tx, &manifest, current_time).await?
-        || !policy_approvals_active(&mut tx, &active_policy, current_time).await?
-    {
+    tx.commit().await?;
+    let mut tx = auth.pool.begin().await?;
+    sqlx::query("SELECT id FROM dm_conversations WHERE id=$1::uuid FOR UPDATE")
+        .bind(conversation)
+        .fetch_one(&mut *tx)
+        .await?;
+    let active_hash: Option<String> = sqlx::query_scalar(
+        "SELECT policy_hash FROM dm_replica_policies WHERE conversation_id=$1::uuid AND active",
+    )
+    .bind(conversation)
+    .fetch_optional(&mut *tx)
+    .await?;
+    if active_hash.as_deref() != Some(checkpoint.policy_hash.as_str()) {
         return Err(AuthError::Forbidden);
+    }
+    let authorizations = crate::dm::authorization_state(&mut tx, conversation, &manifest).await?;
+    if !authorizations.revocations.is_empty()
+        || !crate::dm::participants_not_revoked(&mut tx, &manifest).await?
+    {
+        tx.commit().await?;
+        return Ok(());
     }
     let current: i64 = sqlx::query_scalar("SELECT received_cursor FROM dm_replica_cursors WHERE conversation_id=$1::uuid AND origin=$2 FOR UPDATE")
         .bind(conversation).bind(remote_origin).fetch_optional(&mut *tx).await?.unwrap_or(0);

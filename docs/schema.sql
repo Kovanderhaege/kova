@@ -248,3 +248,8 @@ CREATE TABLE dm_replica_conflicts (
     conflicting_hash text NOT NULL CHECK (conflicting_hash ~ '^[0-9a-f]{64}$'),
     detected_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- 0009_dm_authorizations.sql
+ALTER TABLE dm_conversations
+    ADD COLUMN authorization_state jsonb NOT NULL
+        DEFAULT '{"authorizations":[],"revocations":[]}'::jsonb;

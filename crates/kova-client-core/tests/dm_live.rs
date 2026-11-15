@@ -108,6 +108,26 @@ fn private_messages_offline_restart_and_device_verification() {
     }
     {
         let mut b = DmStore::open(&bob_path, bob_key.expose_secret(), &bob).unwrap();
+        // Renewal is orthogonal to the durable outgoing MLS ratchet. Both
+        // participants publish fresh proofs for the existing conversation.
+        let manifest_before = instance
+            .dm_conversation(&bob_session, &conversation)
+            .unwrap();
+        let pending_before = b.render(Some(&conversation)).unwrap();
+        b.renew_authorization(&instance, &bob_session, &bob, &conversation)
+            .unwrap();
+        assert_eq!(b.render(Some(&conversation)).unwrap(), pending_before);
+        {
+            let mut a = DmStore::open(&alice_path, alice_key.expose_secret(), &alice).unwrap();
+            a.renew_authorization(&instance, &alice_session, &alice, &conversation)
+                .unwrap();
+        }
+        assert_eq!(
+            instance
+                .dm_conversation(&bob_session, &conversation)
+                .unwrap(),
+            manifest_before
+        );
         b.retry(&instance, &bob_session, &conversation).unwrap();
         b.retry(&instance, &bob_session, &conversation).unwrap();
         b.sync(&instance, &bob_session, &conversation).unwrap();

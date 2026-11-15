@@ -124,6 +124,7 @@ impl Page {
                 "Approuver la proposition consultée",
                 "Synchroniser avec le réplica approuvé",
                 "Proposer le retrait d'un réplica",
+                "Renouveler les preuves de cet appareil",
             ],
             Self::Identity => &["Afficher l'identité", "Créer une identité"],
             Self::Connection => &[
@@ -150,7 +151,7 @@ impl Page {
                 "Seul le propriétaire change les rôles. Un modérateur peut exclure un membre simple. L'exclusion est définitive pour cette communauté, même avec une nouvelle invitation. Vérifiez l'identifiant avant de cliquer."
             }
             Self::DirectMessages => {
-                "Vérifiez l'identité et l'empreinte de l'appareil par un canal indépendant avant toute création ou acceptation. La conversation sélectionnée est synchronisée automatiquement toutes les 30 secondes et les envois en attente sont réessayés sur une instance approuvée disponible. Hors ligne ou pendant la préparation, l'examen et l'approbation d'une politique, le travail de fond est suspendu ; utilisez Synchroniser, Envoyer ou Réessayer pour le reprendre. Pour la réplication, préparez une politique, consultez les origines et clés, puis approuvez séparément. Les deux participants doivent approuver avant toute synchronisation."
+                "Vérifiez l'identité et l'empreinte de l'appareil par un canal indépendant avant toute création ou acceptation. La conversation sélectionnée est synchronisée automatiquement toutes les 30 secondes et les envois en attente sont réessayés sur une instance approuvée disponible. Hors ligne ou pendant la préparation, l'examen et l'approbation d'une politique, le travail de fond est suspendu ; utilisez Synchroniser, Envoyer ou Réessayer pour le reprendre. Pour la réplication, préparez une politique, consultez les origines et clés, puis approuvez séparément. Les deux participants doivent approuver avant toute synchronisation. Les autorisations d'appareil expirent après 24 h : utilisez « Renouveler les preuves de cet appareil » pour prolonger la conversation en conservant son historique et sa file d'envoi. Chaque participant renouvelle son propre appareil ; si cet appareil est associé, faites renouveler son autorisation depuis l'appareil racine puis réassociez-le. Reconnectez-vous à un réplica si sa session a expiré. Une révocation peut n'être connue d'un réplica isolé qu'après son retour en ligne."
             }
             Self::Identity => {
                 "La clé racine est protégée par Windows. Créez une sauvegarde : sa perte sans sauvegarde rend l'identité irrécupérable."
@@ -458,10 +459,11 @@ impl IdentityWindow {
                         id: value(3),
                         peer_origin: value(5),
                     },
-                    _ => crate::dm_service::Command::RemoveReplica {
+                    12 => crate::dm_service::Command::RemoveReplica {
                         id: value(3),
                         peer_origin: value(5),
                     },
+                    _ => crate::dm_service::Command::RenewAuthorization { id: value(3) },
                 },
             },
             (Page::Identity, 0) => Command::Inspect,
@@ -547,7 +549,7 @@ impl IdentityWindow {
 
 fn dm_background_pause_after_action(action: usize) -> Option<bool> {
     match action {
-        4..=6 => Some(false),
+        4..=6 | 13 => Some(false),
         7..=10 | 12 => Some(true),
         _ => None,
     }
@@ -564,7 +566,7 @@ mod tests {
             paused = dm_background_pause_after_action(action).unwrap_or(paused);
             assert!(paused, "action {action} should pause automatic sync");
         }
-        for action in [4, 5, 6] {
+        for action in [4, 5, 6, 13] {
             paused = dm_background_pause_after_action(action).unwrap_or(paused);
             assert!(!paused, "action {action} should resume automatic sync");
         }

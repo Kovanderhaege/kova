@@ -27,6 +27,10 @@ pub(crate) fn routes() -> Router<Arc<Auth>> {
         )
         .route("/dm/conversations/{conversation}", get(get_conversation))
         .route(
+            "/dm/conversations/{conversation}/authorizations",
+            get(get_authorizations).post(renew_authorization),
+        )
+        .route(
             "/dm/conversations/{conversation}/events",
             get(list_events).post(put_event),
         )
@@ -184,7 +188,11 @@ async fn create_conversation(
     if recipient != manifest.recipient || used || !participants_active(&mut tx, &manifest).await? {
         return Err(AuthError::Forbidden);
     }
-    sqlx::query("INSERT INTO dm_conversations(id,origin,creator_identity,creator_device,recipient_identity,recipient_device,manifest) VALUES($1::uuid,$2,$3,$4,$5,$6,$7)")
+    let authorization_state = kova_protocol::dm::DmAuthorizationState {
+        authorizations: vec![manifest.creator.clone(), manifest.recipient.clone()],
+        revocations: Vec::new(),
+    };
+    sqlx::query("INSERT INTO dm_conversations(id,origin,creator_identity,creator_device,recipient_identity,recipient_device,manifest,authorization_state) VALUES($1::uuid,$2,$3,$4,$5,$6,$7,$8)")
         .bind(&manifest.conversation_id)
         .bind(&manifest.origin)
         .bind(&manifest.creator.global_identity_id)
@@ -192,6 +200,7 @@ async fn create_conversation(
         .bind(&manifest.recipient.global_identity_id)
         .bind(&manifest.recipient.device_id)
         .bind(DbJson(manifest.clone()))
+        .bind(DbJson(authorization_state))
         .execute(&mut *tx)
         .await?;
     sqlx::query("INSERT INTO dm_used_key_packages(package_hash,identity_id,device_id,conversation_id) VALUES($1,$2,$3,$4::uuid)")
@@ -296,6 +305,211 @@ async fn get_conversation(
         .ok_or(AuthError::NotFound)
 }
 
+async fn get_authorizations(
+    State(auth): State<Arc<Auth>>,
+    headers: HeaderMap,
+    Path(conversation): Path<String>,
+) -> Result<Json<kova_protocol::dm::DmAuthorizationState>, AuthError> {
+    let user = current_user(&auth.pool, &headers).await?;
+    let device = current_device(&auth.pool, &headers).await?;
+    let mut tx = auth.pool.begin().await?;
+    let manifest =
+        authorized_manifest(&mut tx, &conversation, &user.global_identity_id, &device).await?;
+    let state = authorization_state(&mut tx, &conversation, &manifest).await?;
+    tx.commit().await?;
+    Ok(Json(state))
+}
+
+async fn renew_authorization(
+    State(auth): State<Arc<Auth>>,
+    headers: HeaderMap,
+    Path(conversation): Path<String>,
+    body: Result<Json<DeviceBundle>, JsonRejection>,
+) -> Result<Json<kova_protocol::dm::DmAuthorizationState>, AuthError> {
+    let user = current_user(&auth.pool, &headers).await?;
+    let device = current_device(&auth.pool, &headers).await?;
+    let Json(bundle) = body.map_err(|_| AuthError::Invalid)?;
+    if bundle.global_identity_id != user.global_identity_id || bundle.device_id != device {
+        return Err(AuthError::Forbidden);
+    }
+    let mut tx = auth.pool.begin().await?;
+    let manifest =
+        authorized_manifest(&mut tx, &conversation, &user.global_identity_id, &device).await?;
+    let original = [&manifest.creator, &manifest.recipient]
+        .into_iter()
+        .find(|participant| {
+            participant.device_id == device
+                && participant.global_identity_id == user.global_identity_id
+        })
+        .ok_or(AuthError::Forbidden)?;
+    if !kova_identity::dm::verify_renewal(&bundle, original)
+        || !kova_identity::dm::verify_device(&bundle, unix_now()?)
+    {
+        return Err(AuthError::Invalid);
+    }
+    let state = authorization_state(&mut tx, &conversation, &manifest).await?;
+    if state.revocations.iter().any(|proof| {
+        proof.global_identity_id == bundle.global_identity_id
+            && proof.device_public_key == bundle.device_public_key
+    }) {
+        return Err(AuthError::Forbidden);
+    }
+    let state = merge_authorizations(
+        &mut tx,
+        &conversation,
+        &manifest,
+        &kova_protocol::dm::DmAuthorizationState {
+            authorizations: vec![bundle],
+            revocations: Vec::new(),
+        },
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(Json(state))
+}
+
+pub(crate) async fn authorization_state(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    conversation: &str,
+    manifest: &ConversationManifest,
+) -> Result<kova_protocol::dm::DmAuthorizationState, AuthError> {
+    let mut state: kova_protocol::dm::DmAuthorizationState = sqlx::query_scalar::<_, DbJson<_>>(
+        "SELECT authorization_state FROM dm_conversations WHERE id=$1::uuid FOR UPDATE",
+    )
+    .bind(conversation)
+    .fetch_one(&mut **tx)
+    .await?
+    .0;
+    for bundle in [&manifest.creator, &manifest.recipient] {
+        if !state.authorizations.iter().any(|known| {
+            known.device_id == bundle.device_id
+                && known.global_identity_id == bundle.global_identity_id
+        }) {
+            state.authorizations.push(bundle.clone());
+        }
+    }
+    let rows = sqlx::query("SELECT r.identity_id, encode(d.public_key,'hex') AS public_key, encode(r.signature,'hex') AS signature FROM identity_revocations r JOIN devices d USING(identity_id,device_id) WHERE (r.identity_id,r.device_id) IN (($1,$2),($3,$4))")
+        .bind(&manifest.creator.global_identity_id).bind(&manifest.creator.device_id)
+        .bind(&manifest.recipient.global_identity_id).bind(&manifest.recipient.device_id)
+        .fetch_all(&mut **tx).await?;
+    for row in rows {
+        let proof = kova_protocol::dm::DmRevocation {
+            global_identity_id: row.try_get("identity_id")?,
+            device_public_key: row.try_get("public_key")?,
+            signature: row.try_get("signature")?,
+        };
+        if !state.revocations.iter().any(|known| {
+            known.global_identity_id == proof.global_identity_id
+                && known.device_public_key == proof.device_public_key
+        }) {
+            state.revocations.push(proof);
+        }
+    }
+    state.authorizations.sort_by(|a, b| {
+        (&a.global_identity_id, &a.device_id).cmp(&(&b.global_identity_id, &b.device_id))
+    });
+    state.revocations.sort_by(|a, b| {
+        (&a.global_identity_id, &a.device_public_key)
+            .cmp(&(&b.global_identity_id, &b.device_public_key))
+    });
+    if !kova_identity::dm::verify_authorization_state(&state, manifest) {
+        return Err(AuthError::Internal);
+    }
+    Ok(state)
+}
+
+pub(crate) async fn merge_authorizations(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    conversation: &str,
+    manifest: &ConversationManifest,
+    incoming: &kova_protocol::dm::DmAuthorizationState,
+) -> Result<kova_protocol::dm::DmAuthorizationState, AuthError> {
+    if !kova_identity::dm::verify_authorization_state(incoming, manifest) {
+        return Err(AuthError::Invalid);
+    }
+    let current_time = unix_now()?;
+    if incoming
+        .authorizations
+        .iter()
+        .any(|bundle| bundle.issued_at > current_time)
+    {
+        return Err(AuthError::Invalid);
+    }
+    let mut current = authorization_state(tx, conversation, manifest).await?;
+    for candidate in &incoming.authorizations {
+        match current.authorizations.iter_mut().find(|known| {
+            known.device_id == candidate.device_id
+                && known.global_identity_id == candidate.global_identity_id
+        }) {
+            Some(known)
+                if kova_identity::dm::authorization_order(candidate)
+                    > kova_identity::dm::authorization_order(known) =>
+            {
+                *known = candidate.clone()
+            }
+            Some(_) => {}
+            None => current.authorizations.push(candidate.clone()),
+        }
+    }
+    for proof in &incoming.revocations {
+        if !current.revocations.iter().any(|known| {
+            known.global_identity_id == proof.global_identity_id
+                && known.device_public_key == proof.device_public_key
+        }) {
+            current.revocations.push(proof.clone());
+        }
+    }
+    current.authorizations.sort_by(|a, b| {
+        (&a.global_identity_id, &a.device_id).cmp(&(&b.global_identity_id, &b.device_id))
+    });
+    current.revocations.sort_by(|a, b| {
+        (&a.global_identity_id, &a.device_public_key)
+            .cmp(&(&b.global_identity_id, &b.device_public_key))
+    });
+    if !kova_identity::dm::verify_authorization_state(&current, manifest) {
+        return Err(AuthError::Invalid);
+    }
+    sqlx::query("UPDATE dm_conversations SET authorization_state=$2 WHERE id=$1::uuid")
+        .bind(conversation)
+        .bind(DbJson(current.clone()))
+        .execute(&mut **tx)
+        .await?;
+    for bundle in &current.authorizations {
+        if let Some(proof) = current.revocations.iter().find(|proof| {
+            proof.global_identity_id == bundle.global_identity_id
+                && proof.device_public_key == bundle.device_public_key
+        }) {
+            let signature = hex::decode(&proof.signature).map_err(|_| AuthError::Invalid)?;
+            let payload =
+                kova_protocol::device_revocation(&bundle.global_identity_id, &bundle.device_id);
+            sqlx::query("UPDATE devices SET revoked_at=coalesce(revoked_at,now()),revocation_signature=$3 WHERE identity_id=$1 AND device_id=$2")
+                .bind(&bundle.global_identity_id).bind(&bundle.device_id).bind(&signature)
+                .execute(&mut **tx).await?;
+            sqlx::query("INSERT INTO identity_revocations(identity_id,device_id,event_id,payload,signature) VALUES($1,$2,$3,$4,$5) ON CONFLICT(identity_id,device_id) DO NOTHING")
+                .bind(&bundle.global_identity_id).bind(&bundle.device_id)
+                .bind(hex::encode(Sha256::digest(payload.as_bytes()))).bind(payload).bind(signature)
+                .execute(&mut **tx).await?;
+            continue;
+        }
+        let payload = kova_protocol::device_authorization_v2(
+            &bundle.global_identity_id,
+            &bundle.device_id,
+            &bundle.device_public_key,
+            bundle.issued_at,
+            bundle.expires_at,
+        );
+        sqlx::query("UPDATE devices SET authorization_payload=$3,authorization_signature=$4,authorization_expires_at=$5 WHERE identity_id=$1 AND device_id=$2 AND revoked_at IS NULL AND (authorization_expires_at IS NULL OR authorization_expires_at < $5)")
+            .bind(&bundle.global_identity_id)
+            .bind(&bundle.device_id)
+            .bind(payload)
+            .bind(hex::decode(&bundle.authorization_signature).map_err(|_| AuthError::Invalid)?)
+            .bind(bundle.expires_at)
+            .execute(&mut **tx)
+            .await?;
+    }
+    Ok(current)
+}
+
 async fn list_events(
     State(auth): State<Arc<Auth>>,
     headers: HeaderMap,
@@ -398,7 +612,10 @@ async fn put_event(
     {
         return Err(AuthError::Invalid);
     }
-    if !participants_active(&mut tx, &manifest).await? {
+    let authorizations = authorization_state(&mut tx, &conversation, &manifest).await?;
+    if !kova_identity::dm::conversation_authorized(&manifest, &authorizations, unix_now()?)
+        || !participants_not_revoked(&mut tx, &manifest).await?
+    {
         return Err(AuthError::Forbidden);
     }
     let row = sqlx::query(
@@ -451,6 +668,27 @@ async fn put_event(
         .await?;
     tx.commit().await?;
     Ok(Json(StoredDmEvent { cursor, event }))
+}
+
+pub(crate) async fn participants_not_revoked(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    manifest: &ConversationManifest,
+) -> Result<bool, AuthError> {
+    let mut participants = [&manifest.creator, &manifest.recipient];
+    participants.sort_by_key(|bundle| (&bundle.global_identity_id, &bundle.device_id));
+    for bundle in participants {
+        let active: Option<bool> = sqlx::query_scalar(
+            "SELECT revoked_at IS NULL FROM devices WHERE identity_id=$1 AND device_id=$2 FOR SHARE",
+        )
+        .bind(&bundle.global_identity_id)
+        .bind(&bundle.device_id)
+        .fetch_optional(&mut **tx)
+        .await?;
+        if !active.unwrap_or(false) {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 async fn replica_is_active(

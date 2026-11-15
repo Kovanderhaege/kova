@@ -223,7 +223,7 @@ mod tests {
                     .set_read_timeout(Some(std::time::Duration::from_secs(5)))
                     .unwrap();
                 let mut request = [0; 4096];
-                socket.read(&mut request).unwrap();
+                assert!(socket.read(&mut request).unwrap() > 0);
                 write!(socket, "HTTP/1.1 {status} Error\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
             });
             let instance = Instance::new(&origin).unwrap();

@@ -1,7 +1,8 @@
 //! Signature and identity checks for opaque direct-message envelopes.
 use crate::{identity_id, public_key, verify_signature};
 use kova_protocol::dm::{
-    ConversationManifest, DeviceBundle, DmEvent, valid_device_bundle, valid_dm_event, valid_uuid,
+    ConversationManifest, DeviceBundle, DmAuthorizationState, DmEvent, DmRevocation,
+    valid_device_bundle, valid_dm_event, valid_uuid,
 };
 use sha2::{Digest, Sha256};
 
@@ -51,6 +52,105 @@ pub fn verify_conversation_historical(manifest: &ConversationManifest) -> bool {
     verify_device_historical(&manifest.creator)
         && verify_device_historical(&manifest.recipient)
         && verify_conversation_signature(manifest)
+}
+
+/// Renewal proves possession of the original device and root keys, without
+/// changing the MLS roster or reusing the KeyPackage to create another group.
+pub fn verify_renewal(bundle: &DeviceBundle, original: &DeviceBundle) -> bool {
+    verify_device_historical(bundle)
+        && bundle.global_identity_id == original.global_identity_id
+        && bundle.device_id == original.device_id
+        && bundle.root_public_key == original.root_public_key
+        && bundle.device_public_key == original.device_public_key
+        && bundle.key_package == original.key_package
+}
+
+pub fn verify_revocation(proof: &DmRevocation, manifest: &ConversationManifest) -> bool {
+    [&manifest.creator, &manifest.recipient]
+        .into_iter()
+        .any(|original| {
+            original.global_identity_id == proof.global_identity_id
+                && original.device_public_key == proof.device_public_key
+                && public_key(&original.root_public_key).is_some_and(|root| {
+                    verify_signature(
+                        &root,
+                        &kova_protocol::device_revocation(
+                            &original.global_identity_id,
+                            &original.device_id,
+                        ),
+                        &proof.signature,
+                    )
+                })
+        })
+}
+
+pub fn verify_authorization_state(
+    state: &DmAuthorizationState,
+    manifest: &ConversationManifest,
+) -> bool {
+    verify_conversation_historical(manifest)
+        && state.authorizations.len() <= 2
+        && state.revocations.len() <= 2
+        && state.authorizations.iter().all(|bundle| {
+            [&manifest.creator, &manifest.recipient]
+                .into_iter()
+                .any(|original| verify_renewal(bundle, original))
+        })
+        && state
+            .authorizations
+            .iter()
+            .enumerate()
+            .all(|(index, bundle)| {
+                state.authorizations[..index].iter().all(|other| {
+                    other.device_id != bundle.device_id
+                        || other.global_identity_id != bundle.global_identity_id
+                })
+            })
+        && state
+            .revocations
+            .iter()
+            .all(|proof| verify_revocation(proof, manifest))
+        && state.revocations.iter().enumerate().all(|(index, proof)| {
+            state.revocations[..index].iter().all(|other| {
+                other.device_public_key != proof.device_public_key
+                    || other.global_identity_id != proof.global_identity_id
+            })
+        })
+}
+
+/// Deterministic ordering gives concurrent deliveries the same monotone result.
+pub fn authorization_order(bundle: &DeviceBundle) -> (i64, i64, &str) {
+    (bundle.issued_at, bundle.expires_at, &bundle.signature)
+}
+
+pub fn conversation_authorized(
+    manifest: &ConversationManifest,
+    state: &DmAuthorizationState,
+    now: i64,
+) -> bool {
+    verify_authorization_state(state, manifest)
+        && state.revocations.is_empty()
+        && [&manifest.creator, &manifest.recipient]
+            .into_iter()
+            .all(|original| {
+                let effective = state
+                    .authorizations
+                    .iter()
+                    .filter(|bundle| {
+                        bundle.global_identity_id == original.global_identity_id
+                            && bundle.device_id == original.device_id
+                    })
+                    .chain(std::iter::once(original))
+                    .max_by(|left, right| {
+                        authorization_order(left).cmp(&authorization_order(right))
+                    })
+                    .expect("original bundle is always present");
+                kova_protocol::authorization_is_fresh(
+                    effective.issued_at,
+                    effective.expires_at,
+                    now,
+                )
+            })
 }
 
 fn verify_conversation_signature(manifest: &ConversationManifest) -> bool {
