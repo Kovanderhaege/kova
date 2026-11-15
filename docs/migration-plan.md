@@ -194,7 +194,7 @@ neuf références canoniques associées aux archives crates.io contrôlées. Dou
 paquets sans avis concret de copyright restent signalés dans l'inventaire ;
 aucun titulaire ni année n'a été déduit des noms d'auteurs.
 
-**Jalon 9 encore ouvert :** une nouvelle CI Linux et Windows réussie sur la
+**État de la préparation avant le push :** une nouvelle CI Linux et Windows réussie sur la
 révision retenue doit être obtenue avant clôture. Aucun push n'est effectué
 sans demande explicite, conformément à `AGENTS.md`.
 
@@ -205,3 +205,42 @@ sur `2e29acd` a détecté l'omission des fichiers de provenance cachés par
 de matériaux générés inclut désormais ces fichiers ; aucun secret de profil
 ou d'environnement n'est ajouté. L'inventaire exige leur conservation et la
 nouvelle exécution doit être vérifiée avant clôture.
+
+Sur la révision `1215179c48d0d65f7516e534a49892bd7cfd30d9`, le job Linux du
+[run 43741114553](https://github.com/Kovanderhaege/kova/actions/runs/43741114553)
+réussit, y compris toutes les suites PostgreSQL. L'artefact corrigé
+`server-source-and-notices` (ID `14172790503`, SHA-256
+`c8e4a0efba4123141125aa3e9ded1244d37c9ece4a617deb24ef8f93c59fa686`)
+a été téléchargé et vérifié : révision exacte, arbre propre, six licences Kova
+conformes aux manifestes, 780 dépendances, 1 604 notices/provenances et leurs
+empreintes, 420 fichiers source Kova et leurs empreintes, 780 sources vendored
+avec checksums Cargo et configuration relative `vendor`. Tous les fichiers
+référencés, y compris les fichiers cachés, sont présents.
+
+## Clôture du jalon 9 — 15 novembre 2026
+
+**Jalon 9 terminé pour le périmètre du prototype**, sur la révision technique
+retenue `1215179c48d0d65f7516e534a49892bd7cfd30d9`. Le [run 43741114553](https://github.com/Kovanderhaege/kova/actions/runs/43741114553)
+est terminé avec succès : job Linux `verify` et job `windows`, incluant toutes
+les suites serveur, les tests du cœur client, le contrôle desktop, les tests
+Python/PowerShell et la production effective du paquet Windows Release.
+
+L'artefact `windows-development-unsigned` (ID `14172469432`, SHA-256
+`a5768777e3c7546a0a1310da80c3bfc83425e39796e8029d46ff7bc787701e0c`)
+a été téléchargé. Le ZIP embarqué contient les deux exécutables PE Windows
+x86-64 attendus, une configuration `Release`, la révision exacte et un arbre
+propre. Ses 1 622 fichiers correspondent à `SHA256SUMS`, avec correspondance
+des 1 604 notices/provenances à l'inventaire. Les licences des six crates,
+les empreintes des 420 fichiers Kova dans l'archive source, les 780 sources
+Cargo avec checksums et la configuration relative `vendor` sont vérifiées.
+Le matériel serveur corrigé et vérifié est décrit ci-dessus ; les deux
+artefacts appartiennent à cette même révision. Le contrôle Release porte sur
+le build, le format et le contenu distribués, pas sur une nouvelle recette
+graphique ni un essai sur Windows vierge.
+
+Le commit de clôture ne change que le bilan et le statut documentaire, en
+conservant ce code et ces artefacts validés. Les limites, avertissements et
+travaux affectés aux jalons 10–14 restent ceux de [release-scope.md](release-scope.md).
+Le ZIP demeure non signé, les copyrights absents sont signalés, l'hébergement
+durable des sources avant publication reste à organiser et aucun audit
+cryptographique ou juridique indépendant n'est revendiqué.
