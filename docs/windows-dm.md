@@ -1,5 +1,7 @@
 # Messagerie privée E2EE — prototype Windows
 
+La [fenêtre principale](ui-mvp.md) affiche désormais la liste globale des MP : choisir une conversation ouvre son fil et son composeur sans recopier d’UUID. Ses actions de sécurité se trouvent dans **Paramètres → Messages privés**. Les libellés techniques ci-dessous restent disponibles avec `--diagnostics`. Les empreintes complètes doivent toujours être vérifiées hors bande ; sélectionner une proposition ne l’accepte pas.
+
 Le panneau **MP chiffrés** du desktop Windows permet de publier un appareil destinataire, créer ou accepter une conversation, synchroniser son fil, envoyer et réessayer un message resté en attente. Les opérations de réseau et de chiffrement tournent en arrière-plan. L'état MLS et les messages en attente sont conservés dans la base locale du profil et protégés par son secret stocké dans le coffre Windows.
 
 ## Établir une conversation

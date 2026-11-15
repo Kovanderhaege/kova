@@ -68,6 +68,52 @@ fn fixture() -> Fixture {
     }
 }
 
+#[test]
+fn typed_local_dm_page_keeps_topological_suffix_and_pending_state() {
+    let mut fixture = fixture();
+    let path = fixture.path.clone();
+    let mut state = fixture.store.state.clone();
+    let conversation = state.conversations.get_mut(&fixture.id).unwrap();
+    let mut parent = Vec::new();
+    let mut ids = Vec::new();
+    for index in 0..3 {
+        let id = uuid::Uuid::new_v4().to_string();
+        conversation.events.insert(
+            id.clone(),
+            DmEvent {
+                conversation_id: fixture.id.clone(),
+                event_id: id.clone(),
+                author_identity: fixture.alice.global_id().unwrap(),
+                author_device: fixture.alice.device_id().unwrap(),
+                parents: parent.clone(),
+                ciphertext: "00".into(),
+                signature: "00".into(),
+            },
+        );
+        conversation
+            .messages
+            .insert(id.clone(), format!("message-{index}"));
+        parent = vec![id.clone()];
+        ids.push(id);
+    }
+    conversation.pending.push(ids[2].clone());
+    fixture.store.save(state).unwrap();
+
+    let page = fixture.store.local_messages(&fixture.id, 2).unwrap();
+    assert_eq!(
+        page.iter()
+            .map(|message| message.body.as_str())
+            .collect::<Vec<_>>(),
+        ["message-1", "message-2"]
+    );
+    assert!(!page[0].pending);
+    assert!(page[1].pending);
+    assert_eq!(page[1].id, ids[2]);
+    drop(fixture);
+    std::fs::remove_file(&path).unwrap();
+    std::fs::remove_file(path.with_extension("lock")).unwrap();
+}
+
 fn private_key(identity: &Identity, field: &str) -> ring::signature::Ed25519KeyPair {
     let value = serde_json::to_value(identity).unwrap();
     let bytes: Vec<u8> = serde_json::from_value(value[field].clone()).unwrap();

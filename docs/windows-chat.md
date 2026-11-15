@@ -1,6 +1,8 @@
 # Chat public Windows
 
-Connectez le profil à l’instance depuis **Connexion**. Dans **Communautés**, consultez les salons et copiez l’identifiant du salon voulu. Dans **Chat**, renseignez l’origine exacte et cet identifiant.
+La fenêtre principale permet de choisir la communauté et le salon par leur nom, puis de rédiger directement dans le composeur. **Paramètres → Instance** ouvre la connexion. Le flux du salon sélectionné démarre automatiquement ; **Afficher plus tôt** étend le fil par 50 messages. Voir [le guide de l’interface](ui-mvp.md).
+
+Les commandes ci-dessous décrivent aussi le panneau technique conservé avec `--diagnostics`, où le salon est saisi par identifiant et les 100 derniers messages sont affichés.
 
 - **Recevoir en direct** ouvre le flux et rattrape l’historique depuis le cache. Une coupure provoque une reprise automatique avec délai croissant jusqu’à huit secondes. Une session expirée ou un accès retiré exige une intervention ; reconnectez-vous si nécessaire.
 - **Arrêter le direct** ferme la réception. Changer de panneau l’arrête également.

@@ -11,6 +11,10 @@ use gpui::{
 };
 use unicode_segmentation::*;
 
+pub(crate) fn activates_button(key: &str, modifiers: gpui::Modifiers) -> bool {
+    !modifiers.modified() && matches!(key, "enter" | "space")
+}
+
 actions!(
     text_input,
     [
@@ -459,7 +463,7 @@ impl Element for TextElement {
         let style = window.text_style();
 
         let (display_text, text_color) = if content.is_empty() {
-            (input.placeholder.clone(), hsla(0., 0., 0., 0.2))
+            (input.placeholder.clone(), hsla(0., 0., 0., 0.6))
         } else {
             (content, style.color)
         };
@@ -578,11 +582,19 @@ impl Element for TextElement {
 }
 
 impl Render for TextInput {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let focused = self.focus_handle(cx).is_focused(window);
         div()
             .flex()
             .key_context("TextInput")
             .track_focus(&self.focus_handle(cx))
+            .tab_index(0)
+            .border_1()
+            .border_color(if focused {
+                rgb(0x60a5fa)
+            } else {
+                rgb(0x111827)
+            })
             .cursor(CursorStyle::IBeam)
             .on_action(cx.listener(Self::backspace))
             .on_action(cx.listener(Self::delete))
@@ -623,6 +635,17 @@ impl Focusable for TextInput {
 }
 
 impl TextInput {
+    pub(crate) fn set_content(&mut self, text: &str, cx: &mut Context<Self>) {
+        self.content = text.to_owned().into();
+        self.selected_range = self.content.len()..self.content.len();
+        self.selection_reversed = false;
+        self.marked_range = None;
+        self.last_layout = None;
+        self.last_bounds = None;
+        self.is_selecting = false;
+        cx.notify();
+    }
+
     pub(crate) fn new(
         cx: &mut Context<Self>,
         placeholder: &str,
@@ -631,7 +654,7 @@ impl TextInput {
     ) -> Self {
         Self {
             secret,
-            focus_handle: cx.focus_handle(),
+            focus_handle: cx.focus_handle().tab_stop(true),
             content: value.to_owned().into(),
             placeholder: placeholder.to_owned().into(),
             selected_range: 0..0,
@@ -665,4 +688,33 @@ pub(crate) fn bind_keys(cx: &mut App) {
         KeyBinding::new("home", Home, None),
         KeyBinding::new("end", End, None),
     ]);
+}
+
+#[cfg(test)]
+mod button_tests {
+    use super::activates_button;
+    use gpui::Modifiers;
+
+    #[test]
+    fn system_shortcuts_do_not_activate_the_focused_action() {
+        assert!(activates_button("enter", Modifiers::default()));
+        assert!(activates_button("space", Modifiers::default()));
+        for modifier in [
+            Modifiers {
+                alt: true,
+                ..Default::default()
+            },
+            Modifiers {
+                control: true,
+                ..Default::default()
+            },
+            Modifiers {
+                platform: true,
+                ..Default::default()
+            },
+        ] {
+            assert!(!activates_button("space", modifier));
+            assert!(!activates_button("enter", modifier));
+        }
+    }
 }

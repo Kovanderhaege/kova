@@ -5,7 +5,7 @@ use crate::{
 use gpui::{prelude::*, *};
 use zeroize::Zeroizing;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Page {
     Chat,
     Communities,
@@ -177,7 +177,7 @@ impl Page {
         }
     }
 }
-struct IdentityWindow {
+pub(crate) struct IdentityWindow {
     profile: Entity<TextInput>,
     page: Page,
     fields: Vec<Entity<TextInput>>,
@@ -188,19 +188,225 @@ struct IdentityWindow {
     dm_background_paused: bool,
     subscription: Option<crate::chat_service::Subscription>,
     subscription_generation: u64,
+    drafts: std::collections::HashMap<Page, Vec<String>>,
+    workspace_origin: String,
+    workspace_community: Option<String>,
+    workspace_member: Option<String>,
+    workspace_conversation: Option<String>,
+    focus_handles: std::collections::HashMap<String, FocusHandle>,
+    connected_origin: Option<String>,
+    diagnostics: bool,
 }
+
+#[derive(Clone)]
+enum SettingsAction {
+    Navigate(Page),
+    Execute(usize),
+    CopyResult,
+}
+
 impl IdentityWindow {
+    pub(crate) fn new(profile: Entity<TextInput>, cx: &mut Context<Self>) -> Self {
+        let page = Page::Identity;
+        let fields = page
+            .fields()
+            .iter()
+            .map(|(label, secret)| cx.new(|cx| TextInput::new(cx, label, "", *secret)))
+            .collect();
+        Self {
+            profile,
+            page,
+            fields,
+            status: "Commencez par créer une identité ou vous connecter.".into(),
+            operation_status: String::new(),
+            subscription_scope: None,
+            busy: false,
+            dm_background_paused: false,
+            subscription: None,
+            subscription_generation: 0,
+            drafts: std::collections::HashMap::new(),
+            workspace_origin: String::new(),
+            workspace_community: None,
+            workspace_member: None,
+            workspace_conversation: None,
+            focus_handles: std::collections::HashMap::new(),
+            connected_origin: None,
+            diagnostics: false,
+        }
+    }
+
+    pub(crate) fn suspend(&mut self) {
+        self.subscription = None;
+        self.subscription_generation += 1;
+        self.dm_background_paused = true;
+    }
+
+    pub(crate) fn resume(&mut self, cx: &mut Context<Self>) {
+        if self.page == Page::DirectMessages && self.dm_background_paused {
+            self.dm_background_paused = false;
+            self.start_dm_background_sync(cx);
+        }
+    }
+
+    pub(crate) fn take_connected_origin(&mut self) -> Option<String> {
+        self.connected_origin.take()
+    }
+
+    pub(crate) fn is_busy(&self) -> bool {
+        self.busy
+    }
+
+    pub(crate) fn set_context(
+        &mut self,
+        origin: &str,
+        community: Option<&str>,
+        member: Option<&str>,
+        conversation: Option<&str>,
+        cx: &mut Context<Self>,
+    ) {
+        self.remember_fields(cx);
+        self.workspace_origin = origin.to_owned();
+        self.workspace_community = community.map(str::to_owned);
+        self.workspace_member = member.map(str::to_owned);
+        self.workspace_conversation = conversation.map(str::to_owned);
+        for page in [
+            Page::Chat,
+            Page::Communities,
+            Page::Moderation,
+            Page::DirectMessages,
+            Page::Connection,
+        ] {
+            let mut values = self.drafts.get(&page).cloned().unwrap_or_default();
+            values.resize(page.fields().len(), String::new());
+            if page != Page::Connection || !origin.is_empty() {
+                values[0] = origin.to_owned();
+            }
+            match page {
+                Page::Communities => {
+                    values[1] = self.workspace_community.clone().unwrap_or_default();
+                }
+                Page::Moderation => {
+                    values[1] = self.workspace_community.clone().unwrap_or_default();
+                    values[2] = self.workspace_member.clone().unwrap_or_default();
+                }
+                Page::DirectMessages => {
+                    values[3] = self.workspace_conversation.clone().unwrap_or_default();
+                }
+                _ => {}
+            }
+            self.drafts.insert(page, values.clone());
+            if self.page == page {
+                for (index, field) in self.fields.iter().enumerate() {
+                    field.update(cx, |input, cx| {
+                        input.set_content(&values[index], cx);
+                    });
+                }
+            }
+        }
+        cx.notify();
+    }
+
+    fn remember_fields(&mut self, cx: &Context<Self>) {
+        let values = self
+            .fields
+            .iter()
+            .map(|field| field.read(cx).content.to_string())
+            .collect();
+        self.drafts
+            .insert(self.page, non_secret_draft(self.page, values));
+    }
+
+    fn focusable_action(
+        &mut self,
+        id: String,
+        label: String,
+        selected: bool,
+        action: SettingsAction,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement + use<> {
+        let focus = self
+            .focus_handles
+            .entry(id.clone())
+            .or_insert_with(|| cx.focus_handle().tab_stop(true))
+            .clone();
+        let keyboard_action = action.clone();
+        div()
+            .id(SharedString::from(id))
+            .track_focus(&focus)
+            .tab_index(0)
+            .p_2()
+            .border_2()
+            .border_color(rgb(0x475569))
+            .focus(|style| style.border_color(rgb(0xfbbf24)))
+            .cursor_pointer()
+            .bg(rgb(if selected { 0x2563eb } else { 0x334155 }))
+            .child(label)
+            .on_click(
+                cx.listener(move |this, _, _, cx| this.perform_settings_action(action.clone(), cx)),
+            )
+            .on_key_down(cx.listener(move |this, event: &KeyDownEvent, _, cx| {
+                if input::activates_button(&event.keystroke.key, event.keystroke.modifiers) {
+                    cx.stop_propagation();
+                    this.perform_settings_action(keyboard_action.clone(), cx);
+                }
+            }))
+    }
+
+    fn perform_settings_action(&mut self, action: SettingsAction, cx: &mut Context<Self>) {
+        match action {
+            SettingsAction::Navigate(page) => self.navigate(page, cx),
+            SettingsAction::Execute(index) => self.execute(index, cx),
+            SettingsAction::CopyResult => {
+                cx.write_to_clipboard(ClipboardItem::new_string(self.status.clone()));
+            }
+        }
+    }
+
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
         if self.busy {
             return;
         }
+        self.remember_fields(cx);
         self.subscription = None;
         self.subscription_generation += 1;
         self.page = page;
+        let mut values = self.drafts.get(&page).cloned().unwrap_or_default();
+        values.resize(page.fields().len(), String::new());
+        if let Some(origin_index) = matches!(
+            page,
+            Page::Chat
+                | Page::Communities
+                | Page::Moderation
+                | Page::DirectMessages
+                | Page::Connection
+        )
+        .then_some(0)
+            && values[origin_index].is_empty()
+        {
+            values[origin_index] = self.workspace_origin.clone();
+        }
+        match page {
+            Page::Communities => {
+                values[1] = self.workspace_community.clone().unwrap_or_default();
+            }
+            Page::Moderation => {
+                values[1] = self.workspace_community.clone().unwrap_or_default();
+                values[2] = self.workspace_member.clone().unwrap_or_default();
+            }
+            Page::DirectMessages => {
+                if let Some(conversation) = &self.workspace_conversation {
+                    values[3] = conversation.clone();
+                }
+            }
+            _ => {}
+        }
         self.fields = page
             .fields()
             .iter()
-            .map(|(label, secret)| cx.new(|cx| TextInput::new(cx, label, "", *secret)))
+            .enumerate()
+            .map(|(index, (label, secret))| {
+                cx.new(|cx| TextInput::new(cx, label, &values[index], *secret))
+            })
             .collect();
         self.status.clear();
         self.operation_status.clear();
@@ -306,10 +512,10 @@ impl IdentityWindow {
         if self.busy {
             return;
         }
-        if self.page == Page::DirectMessages {
-            if let Some(paused) = dm_background_pause_after_action(action) {
-                self.dm_background_paused = paused;
-            }
+        if self.page == Page::DirectMessages
+            && let Some(paused) = dm_background_pause_after_action(action)
+        {
+            self.dm_background_paused = paused;
         }
         if self.page == Page::Chat && action <= 1 {
             self.subscription = None;
@@ -341,11 +547,11 @@ impl IdentityWindow {
                             if this.subscription_generation != generation {
                                 return false;
                             }
-                            if let Ok(mut slot) = latest.lock() {
-                                if let Some(status) = slot.take() {
-                                    this.status = status;
-                                    cx.notify();
-                                }
+                            if let Ok(mut slot) = latest.lock()
+                                && let Some(status) = slot.take()
+                            {
+                                this.status = status;
+                                cx.notify();
                             }
                             true
                         })
@@ -500,6 +706,10 @@ impl IdentityWindow {
             (Page::Revocation, _) => Command::Retry,
         };
         let profile = self.profile.read(cx).content.to_string();
+        let connection_origin = match &command {
+            Command::Connect { origin, .. } => Some(origin.clone()),
+            _ => None,
+        };
         for (field, (_, secret)) in self.fields.iter().zip(self.page.fields()) {
             if *secret {
                 field.update(cx, |input, cx| {
@@ -520,6 +730,9 @@ impl IdentityWindow {
                 this.busy = false;
                 let success = status.is_ok();
                 let status = status.unwrap_or_else(|error| error);
+                if success && let Some(origin) = connection_origin {
+                    this.connected_origin = Some(origin);
+                }
                 if this.page == Page::Chat && matches!(action, 3 | 4) && success {
                     this.fields[2].update(cx, |input, cx| {
                         input.reset();
@@ -547,6 +760,14 @@ impl IdentityWindow {
     }
 }
 
+fn non_secret_draft(page: Page, values: Vec<String>) -> Vec<String> {
+    values
+        .into_iter()
+        .zip(page.fields())
+        .map(|(value, (_, secret))| if *secret { String::new() } else { value })
+        .collect()
+}
+
 fn dm_background_pause_after_action(action: usize) -> Option<bool> {
     match action {
         4..=6 | 13 => Some(false),
@@ -555,59 +776,126 @@ fn dm_background_pause_after_action(action: usize) -> Option<bool> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::dm_background_pause_after_action;
-
-    #[test]
-    fn offline_and_replica_review_pause_background_until_manual_sync() {
-        let mut paused = false;
-        for action in [7, 8, 9, 10, 12] {
-            paused = dm_background_pause_after_action(action).unwrap_or(paused);
-            assert!(paused, "action {action} should pause automatic sync");
-        }
-        for action in [4, 5, 6, 13] {
-            paused = dm_background_pause_after_action(action).unwrap_or(paused);
-            assert!(!paused, "action {action} should resume automatic sync");
-        }
-    }
-}
-
 impl Render for IdentityWindow {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let diagnostics = self.diagnostics;
         let pages = [
             (Page::Identity, "Identité"),
-            (Page::Connection, "Connexion"),
-            (Page::Communities, "Communautés"),
-            (Page::Chat, "Chat"),
-            (Page::DirectMessages, "MP chiffrés"),
-            (Page::Moderation, "Modération"),
-            (Page::Backup, "Sauvegarde"),
-            (Page::Request, "Demande"),
-            (Page::Approval, "Autoriser"),
-            (Page::Association, "Associer"),
-            (Page::Revocation, "Révocation"),
+            (Page::Connection, "Instance"),
+            (Page::Communities, "Communautés et salons"),
+            (Page::Chat, "Chat public"),
+            (Page::DirectMessages, "Messages privés"),
+            (Page::Moderation, "Membres et rôles"),
+            (Page::Backup, "Sauvegarde et restauration"),
+            (Page::Request, "Nouvel appareil"),
+            (Page::Approval, "Autoriser un appareil"),
+            (Page::Association, "Associer cet appareil"),
+            (Page::Revocation, "Révoquer un appareil"),
         ];
-        div().id("identity-scroll").size_full().overflow_y_scroll().bg(rgb(0x111827)).child(
-        div().min_h_full().flex().flex_col().gap_3().p_4().text_color(rgb(0xe5e7eb))
-            .child(div().text_xl().child("Kova — Identité et communautés"))
-            .child("Profil local (default pour votre profil habituel ; nouveau nom pour restaurer ou associer)")
-            .child(self.profile.clone())
-            .child(div().flex().flex_wrap().gap_2().children(pages.into_iter().enumerate().map(|(index,(page,label))| {
-                div().id(("page",index)).p_2().cursor_pointer().bg(rgb(if self.page==page {0x2563eb} else {0x334155})).child(label)
-                    .on_click(cx.listener(move |this,_,_,cx| this.navigate(page,cx)))
-            })))
-            .child(self.page.guidance())
-            .children(self.fields.iter().zip(self.page.fields()).map(|(field,(label,_))| div().flex().flex_col().gap_1().child(*label).child(field.clone())))
-            .child(div().flex().flex_wrap().gap_2().children(self.page.actions().iter().enumerate().map(|(index,label)| {
-                div().id(("action",index)).p_2().cursor_pointer().bg(rgb(if self.busy {0x475569} else {0x1d4ed8})).child(*label)
-                    .on_click(cx.listener(move |this,_,_,cx| this.execute(index,cx)))
-            })))
-            .child(self.operation_status.clone())
-            .child(div().id("result").min_h(px(200.)).flex_1().overflow_y_scroll().p_2().bg(rgb(0x1f2937)).child(self.status.clone()))
-            .child(div().id("copy-result").cursor_pointer().child("Copier le résultat (une invitation est confidentielle)")
-                .on_click(cx.listener(|this,_,_,cx| cx.write_to_clipboard(ClipboardItem::new_string(this.status.clone())))))
-        )
+        let hidden_fields: &[usize] = match (self.diagnostics, self.page) {
+            (false, Page::Chat | Page::Communities) => &[1],
+            (false, Page::Moderation) => &[1, 2],
+            (false, Page::DirectMessages) => &[3],
+            _ => &[],
+        };
+        div()
+            .id("identity-scroll")
+            .size_full()
+            .overflow_y_scroll()
+            .bg(rgb(0x111827))
+            .child(
+                div()
+                    .min_h_full()
+                    .flex()
+                    .flex_col()
+                    .gap_3()
+                    .p_4()
+                    .text_color(rgb(0xe5e7eb))
+                    .when(diagnostics, |element| {
+                        element.child("Profil local").child(self.profile.clone())
+                    })
+                    .child(div().text_xl().child(match self.page {
+                        Page::Identity => "Votre identité",
+                        Page::Connection => "Connexion à une instance",
+                        Page::Communities => "Communautés et salons",
+                        Page::Chat => "Chat public",
+                        Page::DirectMessages => "Messages privés",
+                        Page::Moderation => "Membres et rôles",
+                        Page::Backup => "Sauvegarder ou restaurer",
+                        Page::Request => "Associer un nouvel appareil",
+                        Page::Approval => "Autoriser un appareil",
+                        Page::Association => "Terminer l’association",
+                        Page::Revocation => "Révoquer un appareil",
+                    }))
+                    .child(
+                        div().flex().flex_wrap().gap_2().children(
+                            pages
+                                .into_iter()
+                                .enumerate()
+                                .filter(|(_, (page, _))| diagnostics || *page != Page::Chat)
+                                .map(|(index, (page, label))| {
+                                    self.focusable_action(
+                                        format!("settings-page-{index}"),
+                                        label.to_owned(),
+                                        self.page == page,
+                                        SettingsAction::Navigate(page),
+                                        cx,
+                                    )
+                                }),
+                        ),
+                    )
+                    .child(self.page.guidance())
+                    .children(
+                        self.fields
+                            .iter()
+                            .zip(self.page.fields())
+                            .enumerate()
+                            .filter(|(index, _)| !hidden_fields.contains(index))
+                            .map(|(_, (field, (label, _)))| {
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_1()
+                                    .child(*label)
+                                    .child(field.clone())
+                            }),
+                    )
+                    .child(
+                        div().flex().flex_wrap().gap_2().children(
+                            self.page
+                                .actions()
+                                .iter()
+                                .enumerate()
+                                .map(|(index, label)| {
+                                    self.focusable_action(
+                                        format!("settings-action-{index}"),
+                                        (*label).to_owned(),
+                                        false,
+                                        SettingsAction::Execute(index),
+                                        cx,
+                                    )
+                                }),
+                        ),
+                    )
+                    .child(self.operation_status.clone())
+                    .child(
+                        div()
+                            .id("result")
+                            .min_h(px(200.))
+                            .flex_1()
+                            .overflow_y_scroll()
+                            .p_2()
+                            .bg(rgb(0x1f2937))
+                            .child(self.status.clone()),
+                    )
+                    .child(self.focusable_action(
+                        "settings-copy-result".into(),
+                        "Copier le résultat (une invitation est confidentielle)".into(),
+                        false,
+                        SettingsAction::CopyResult,
+                        cx,
+                    )),
+            )
     }
 }
 pub fn run() {
@@ -625,17 +913,10 @@ pub fn run() {
             },
             |_, cx| {
                 let profile = cx.new(|cx| TextInput::new(cx, "Profil local", "default", false));
-                cx.new(|_| IdentityWindow {
-                    profile,
-                    page: Page::Identity,
-                    fields: Vec::new(),
-                    status: "Créez une identité ou affichez celle du profil sélectionné.".into(),
-                    busy: false,
-                    dm_background_paused: false,
-                    operation_status: String::new(),
-                    subscription_scope: None,
-                    subscription: None,
-                    subscription_generation: 0,
+                cx.new(|cx| {
+                    let mut view = IdentityWindow::new(profile, cx);
+                    view.diagnostics = true;
+                    view
                 })
             },
         )
@@ -648,4 +929,35 @@ pub fn run() {
         })
         .detach();
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Page, dm_background_pause_after_action, non_secret_draft};
+
+    #[test]
+    fn page_drafts_preserve_regular_fields_and_clear_secrets() {
+        let values = vec![
+            "https://example.test".into(),
+            "invitation-token".into(),
+            "alice".into(),
+            "Alice".into(),
+        ];
+        let draft = non_secret_draft(Page::Connection, values);
+
+        assert_eq!(draft, ["https://example.test", "", "alice", "Alice"]);
+    }
+
+    #[test]
+    fn offline_and_replica_review_pause_background_until_manual_sync() {
+        let mut paused = false;
+        for action in [7, 8, 9, 10, 12] {
+            paused = dm_background_pause_after_action(action).unwrap_or(paused);
+            assert!(paused, "action {action} should pause automatic sync");
+        }
+        for action in [4, 5, 6, 13] {
+            paused = dm_background_pause_after_action(action).unwrap_or(paused);
+            assert!(!paused, "action {action} should resume automatic sync");
+        }
+    }
 }

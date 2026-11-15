@@ -1,5 +1,11 @@
 # Registre des décisions techniques
 
+## Interface navigable — 16 novembre 2026
+
+- GPUI **0.2.2**, dépendances et protocoles inchangés. La fenêtre principale sépare communautés, salons/MP et fil ; un adaptateur typé lit les données du cœur, sans analyser les chaînes de diagnostic. Les paramètres réutilisent les commandes existantes avec un contexte de sélection. `--diagnostics` conserve les outils techniques.
+- Focus explicite des contrôles (`track_focus`, poignées avec `tab_stop(true)`, `focus_next`, `focus_prev`) et bordure visible ; opérations bloquantes sur l'exécuteur de fond. API vérifiées dans le source officiel GPUI 0.2.2 installé, notamment `elements/div.rs`, `window.rs` et l'exemple `input.rs`. Références : [GPUI 0.2.2](https://docs.rs/gpui/0.2.2/gpui/), [source versionné](https://docs.rs/crate/gpui/0.2.2/source/). Vérification le 2026-11-16.
+- Brouillons en mémoire isolés par profil, origine et fil, sans nouveau stockage privé en clair. Pagination locale par suffixe croissant ; l'ordre topologique MP reste centralisé dans le cœur. Le protocole MP v1 ne porte pas de date de création attestée : l'interface l'indique explicitement. Aucun ajout d'horodatage signé ni consentement implicite aux propositions distantes. La réception reste limitée au fil sélectionné ; l'ordonnancement global appartient au jalon 12.
+
 ## Renouvellement des MP — 15 novembre 2026
 
 - Stack et octets signés v1/v2 inchangés : bundles Ed25519/ring existants, état MLS OpenMLS conservé. Un état public de renouvellement distinct du manifeste fixe les deux mêmes appareils ; aucune nouvelle clé, aucun nouveau groupe et aucune extension des 24 h. Fusion monotone par `(issued_at, expires_at, signature)`, révocations racine définitives prioritaires. Migration additive 0009 ; état client chiffré avec valeur par défaut pour les profils existants.

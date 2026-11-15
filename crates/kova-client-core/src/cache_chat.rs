@@ -61,8 +61,16 @@ impl Cache {
         Ok(())
     }
     pub fn cached_messages(&self, scope: &ChatScope) -> Result<Vec<ChatMessage>> {
-        let values = self.0.prepare("SELECT message FROM (SELECT seq,message FROM chat_messages WHERE origin=?1 AND identity=?2 AND channel=?3 ORDER BY seq DESC LIMIT 100) ORDER BY seq")?
-            .query_map(params![scope.origin,scope.identity,scope.channel], |r| r.get::<_,String>(0))?.collect::<std::result::Result<Vec<_>,_>>()?;
+        self.cached_messages_page(scope, 100)
+    }
+    pub fn cached_messages_page(
+        &self,
+        scope: &ChatScope,
+        limit: usize,
+    ) -> Result<Vec<ChatMessage>> {
+        let limit = i64::try_from(limit.max(1)).unwrap_or(i64::MAX);
+        let values = self.0.prepare("SELECT message FROM (SELECT seq,message FROM chat_messages WHERE origin=?1 AND identity=?2 AND channel=?3 ORDER BY seq DESC LIMIT ?4) ORDER BY seq")?
+            .query_map(params![scope.origin,scope.identity,scope.channel,limit], |r| r.get::<_,String>(0))?.collect::<std::result::Result<Vec<_>,_>>()?;
         values
             .into_iter()
             .map(|v| Ok(serde_json::from_str(&v)?))
@@ -168,6 +176,7 @@ mod tests {
         cache.merge_chat_page(&scope, &page).unwrap();
         cache.merge_chat_page(&scope, &page).unwrap();
         assert_eq!(cache.cached_messages(&scope).unwrap().len(), 2);
+        assert_eq!(cache.cached_messages_page(&scope, 1).unwrap()[0].seq, 2);
         let gap = ChatPage {
             items: vec![message(3), message(5)],
             next_seq: 5,

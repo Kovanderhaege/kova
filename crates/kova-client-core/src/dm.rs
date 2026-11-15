@@ -15,6 +15,22 @@ use std::collections::BTreeMap;
 
 pub use storage::DmStore;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LocalConversation {
+    pub id: String,
+    pub origin: String,
+    pub peer_identity: String,
+    pub pending: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LocalMessage {
+    pub id: String,
+    pub author_identity: String,
+    pub body: String,
+    pub pending: bool,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 struct Conversation {
     manifest: ConversationManifest,
@@ -139,6 +155,59 @@ fn heads(conversation: &Conversation) -> Vec<String> {
 }
 
 impl DmStore {
+    /// Returns only conversations already present in this device's encrypted local store.
+    pub fn local_conversations(&self) -> Vec<LocalConversation> {
+        self.state
+            .conversations
+            .iter()
+            .map(|(id, conversation)| LocalConversation {
+                id: id.clone(),
+                origin: conversation.manifest.origin.clone(),
+                peer_identity: if conversation.manifest.creator.global_identity_id
+                    == self.state.identity
+                {
+                    conversation.manifest.recipient.global_identity_id.clone()
+                } else {
+                    conversation.manifest.creator.global_identity_id.clone()
+                },
+                pending: conversation.pending.len(),
+            })
+            .collect()
+    }
+
+    /// Decrypted content stays in memory and is read directly from the encrypted store.
+    pub fn local_messages(&self, id: &str, limit: usize) -> Result<Vec<LocalMessage>> {
+        let conversation = self
+            .state
+            .conversations
+            .get(id)
+            .ok_or("Conversation inconnue")?;
+        let mut remaining = conversation.events.clone();
+        let mut seen = std::collections::BTreeSet::new();
+        let mut messages = Vec::new();
+        while !remaining.is_empty() {
+            let next = remaining
+                .iter()
+                .find(|(_, event)| event.parents.iter().all(|parent| seen.contains(parent)))
+                .map(|(event_id, _)| event_id.clone())
+                .ok_or("Dépendances MP manquantes")?;
+            let event = remaining.remove(&next).ok_or("Événement absent")?;
+            messages.push(LocalMessage {
+                id: next.clone(),
+                author_identity: event.author_identity,
+                body: conversation
+                    .messages
+                    .get(&next)
+                    .ok_or("Message absent")?
+                    .clone(),
+                pending: conversation.pending.contains(&next),
+            });
+            seen.insert(next);
+        }
+        let start = messages.len().saturating_sub(limit);
+        Ok(messages.into_iter().skip(start).collect())
+    }
+
     fn check_identity(&self, identity: &Identity) -> Result<()> {
         if identity.global_id()? != self.state.identity
             || identity.device_id()? != self.state.device
@@ -203,28 +272,16 @@ impl DmStore {
             text.push_str("Création en attente : Réessayer.\n");
         }
         // Topological order with UUID tie-breaking, independent of server clocks.
-        let mut remaining = conversation.events.clone();
-        let mut seen = std::collections::BTreeSet::new();
-        while !remaining.is_empty() {
-            let next = remaining
-                .iter()
-                .find(|(_, event)| event.parents.iter().all(|p| seen.contains(p)))
-                .map(|(id, _)| id.clone());
-            let Some(next) = next else {
-                return Err("Dépendances MP manquantes".into());
-            };
-            let event = remaining.remove(&next).ok_or("Événement absent")?;
-            let status = if conversation.pending.contains(&next) {
+        for message in self.local_messages(id, usize::MAX)? {
+            let status = if message.pending {
                 "en attente"
             } else {
                 "reçu par le serveur"
             };
             text.push_str(&format!(
                 "\n{} · {status}\n{}\n",
-                event.author_identity,
-                conversation.messages.get(&next).ok_or("Message absent")?
+                message.author_identity, message.body
             ));
-            seen.insert(next);
         }
         Ok(text)
     }

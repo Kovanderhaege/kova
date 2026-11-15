@@ -1,6 +1,6 @@
 # Identité sur Windows
 
-Construire avec Rust MSVC, les outils C++ et le SDK Windows : `cargo run -p kova-desktop --locked`. La fenêtre d’identité est le démarrage normal ; `cargo run -p kova-desktop -- --spike` conserve la démonstration de liste et de brouillon. Ce client de développement n’est pas un installateur signé.
+Construire avec Rust MSVC, les outils C++ et le SDK Windows : `cargo run -p kova-desktop --locked`. La fenêtre de discussions est le démarrage normal ; les parcours ci-dessous sont intégrés à **Paramètres / Bienvenue**. Le profil se choisit dans le bandeau. **Instance** remplace le libellé historique **Connexion**. Voir [le guide de l’interface](ui-mvp.md). `--diagnostics` ouvre les anciens formulaires et `--spike` conserve la démonstration de liste. Ce client de développement n’est pas un installateur signé.
 
 ## Créer et sauvegarder
 
